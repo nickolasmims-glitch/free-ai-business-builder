@@ -4,15 +4,39 @@ let generatorPromise = null;
 
 async function getGenerator(progress_callback) {
   if (!generatorPromise) {
-    generatorPromise = pipeline(
-      "text-generation",
-      "onnx-community/Qwen2.5-0.5B-Instruct",
-      {
-        dtype: "q4",
-        device: "webgpu",
-        progress_callback
+    generatorPromise = (async () => {
+      // Prefer WebGPU when available, but keep the app usable on browsers/devices
+      // where WebGPU is missing or the GPU model load fails.
+      try {
+        if (typeof navigator !== "undefined" && navigator.gpu) {
+          return await pipeline(
+            "text-generation",
+            "onnx-community/Qwen2.5-0.5B-Instruct",
+            {
+              dtype: "q4",
+              device: "webgpu",
+              progress_callback
+            }
+          );
+        }
+      } catch (gpuError) {
+        self.postMessage({
+          type: "status",
+          status: "fallback",
+          message: "WebGPU unavailable; switching to browser CPU mode."
+        });
       }
-    );
+
+      return await pipeline(
+        "text-generation",
+        "onnx-community/Qwen2.5-0.5B-Instruct",
+        {
+          dtype: "q4",
+          device: "wasm",
+          progress_callback
+        }
+      );
+    })();
   }
   return generatorPromise;
 }
