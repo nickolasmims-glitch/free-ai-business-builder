@@ -59,6 +59,9 @@ jobs:
             }
             require('fs').writeFileSync('guardian-log.txt', output);
 
+      - name: Guardian preflight self-test
+        run: node scripts/guardian-preflight.mjs
+
       - name: Run fresh build and business-system audit
         run: |
           if [ ! -s guardian-log.txt ]; then
@@ -67,7 +70,7 @@ jobs:
           else
             printf '%s\n' "Fresh verification build for commit: $GITHUB_SHA" >> guardian-log.txt
           fi
-          npm install >> guardian-log.txt 2>&1 || true
+          npm install --no-audit --no-fund >> guardian-log.txt 2>&1 || true
           npm run build >> guardian-log.txt 2>&1 || true
 
       - name: AI 2 + AI 3 live research and revenue intelligence
