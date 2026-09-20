@@ -6,6 +6,18 @@ const sourceFiles = fs.existsSync("src/main.jsx") ? fs.readFileSync("src/main.js
 const pkg = fs.existsSync("package.json") ? fs.readFileSync("package.json","utf8") : "";
 
 const findings = [], audit = [], research = [];
+const diagnosticProtocol = [
+  ["1. Reproduce","Use the exact failing commit/run and reproduce the failure before changing code."],
+  ["2. Find the earliest failure","Read workflow/job logs and isolate the first nonzero exit, parser error, dependency error, or environment mismatch; later errors may be cascades."],
+  ["3. Classify","Classify as workflow syntax/trigger, runner/toolchain, dependency, source syntax, runtime, environment, network, security, or deployment failure."],
+  ["4. Check the contract","Validate package.json, workflow YAML, required scripts, Node version, action versions, permissions, and expected files before touching application code."],
+  ["5. Apply the smallest repair","Prefer one narrow change that addresses the root cause. Do not combine unrelated product features with a build repair."],
+  ["6. Verify twice","Run static preflight plus the production build. A report is not a pass; the build must actually exit 0."],
+  ["7. Protect known-good","Never overwrite a known-good production version while a diagnostic build is failing. Roll back or isolate experimental work."],
+  ["8. Learn from recurrence","Record the failure signature, root cause, repair, commit, and verification result so the same class of defect gets a preventive check next time."],
+  ["9. Security gate","Never put credentials in source/workflows; use least-privilege tokens, review external side effects, and keep irreversible actions approval-gated."],
+  ["10. Cost gate","Prefer free/public research and existing infrastructure; flag paid APIs, ads, software, credits, or usage before any spend."]
+];
 const add = (severity,title,evidence,repair) => findings.push({severity,title,evidence,repair});
 const addAudit = (severity,area,status,evidence,action) => audit.push({severity,area,status,evidence,action});
 
