@@ -56,6 +56,21 @@ COMPLIANCE: key copyright, disclosure, reused-content, or factual-verification c
 Do not invent statistics, customers, revenue, quotes, or sources. Clearly label anything that needs verification.`);
  };
 
+ const generateRepurpose=()=>{
+  const seed=topic.trim()||factory?.seed||ideas[0]?.title||"AI tools for small businesses";
+  generate(`Create a platform-specific repurposing package for this approved content topic: "${seed}".
+Return exactly these sections:
+YOUTUBE SHORTS: 3 distinct 30-60 second scripts, each with a different hook and clear payoff.
+TIKTOK: 3 distinct short scripts optimized for native short-form viewing, not copies of the Shorts.
+HOOKS: 6 alternate opening lines.
+ON-SCREEN TEXT: 6 concise text overlays.
+TITLES: 6 accurate short-form titles.
+CAPTIONS: 3 platform-ready captions.
+HASHTAGS: 3 small relevant hashtag sets; avoid spammy tags.
+CTAS: 3 natural CTA variants.
+REUSE CHECK: explain how each version adds original value and avoids repetitive/mass-produced content.
+Do not invent statistics, customers, revenue, quotes, or sources. Clearly label anything that needs verification.`);
+ };
  const runAI=()=>{
   const seed=topic.trim()||ideas[0]?.title||"an AI-powered small business opportunity";
   generate(`Analyze this opportunity: "${seed}".
@@ -84,6 +99,12 @@ Keep it concise and do not claim unverified facts.`);
     {factory&&<div className="factorySteps"><span>01 Research angle</span><span>02 Hook</span><span>03 Outline</span><span>04 Shorts</span><span>05 Monetization</span><span>06 Compliance</span></div>}
     {aiStatus!=="idle"&&<div className="aiStatus"><span>{aiStatus==="starting"||aiStatus==="loading"||aiStatus==="generating"?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} {aiStatus==="loading"?`Loading local model ${Math.round(aiProgress)}%`:aiStatus==="generating"?"Building package…":aiStatus==="ready"?"Package ready":aiStatus==="error"?"AI error":"Starting…"}</span></div>}
     {aiOutput&&<><div className="outputActions"><button className="secondary" onClick={copy}><Copy size={15}/> Copy</button><button className="secondary" onClick={generateFactory}><RefreshCw size={15}/> Regenerate</button></div><div className="aiOutput">{aiOutput}</div></>}
+   </div> : active.title==="Repurpose Engine" ? <div className="moduleCard">
+    <h2>Repurpose Engine</h2><p>Turn one approved idea into distinct short-form assets for YouTube Shorts and TikTok. The engine creates platform-specific variations instead of simple duplicates.</p>
+    <div className="inputRow"><input value={topic} onChange={e=>setTopic(e.target.value)} onKeyDown={e=>e.key==="Enter"&&generateRepurpose()} placeholder="Enter a topic or use your Content Factory idea…"/><button onClick={generateRepurpose}><Scissors size={18}/> Repurpose</button></div>
+    <div className="factorySteps"><span>01 Shorts scripts</span><span>02 TikTok versions</span><span>03 Hooks</span><span>04 Captions</span><span>05 CTAs</span><span>06 Reuse check</span></div>
+    {aiStatus!=="idle"&&<div className="aiStatus"><span>{aiStatus==="starting"||aiStatus==="loading"||aiStatus==="generating"?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} {aiStatus==="loading"?`Loading local model ${Math.round(aiProgress)}%`:aiStatus==="generating"?"Repurposing…":aiStatus==="ready"?"Package ready":aiStatus==="error"?"AI error":"Starting…"}</span></div>}
+    {aiOutput&&<><div className="outputActions"><button className="secondary" onClick={copy}><Copy size={15}/> Copy</button><button className="secondary" onClick={generateRepurpose}><RefreshCw size={15}/> Regenerate</button></div><div className="aiOutput">{aiOutput}</div></>}
    </div> :
    <div className="moduleCard"><h2>Run local AI</h2><p>Enter an opportunity and generate a practical next step.</p><div className="inputRow"><input value={topic} onChange={e=>setTopic(e.target.value)} onKeyDown={e=>e.key==="Enter"&&runAI()} placeholder="Enter an opportunity…"/><button onClick={runAI}><Sparkles size={18}/> Generate</button></div>{aiOutput&&<div className="aiOutput">{aiOutput}</div>}</div>}
   </section> : <>
