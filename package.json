@@ -5,12 +5,12 @@
   "type":"module",
   "scripts":{"dev":"vite","build":"vite build","preview":"vite preview"},
   "dependencies":{
-    "@huggingface/transformers":"^3.8.1",
-    "@vitejs/plugin-react":"latest",
-    "vite":"latest",
-    "react":"latest",
-    "react-dom":"latest",
-    "lucide-react":"latest"
+    "@huggingface/transformers":"3.8.1",
+    "@vitejs/plugin-react":"6.1.1",
+    "vite":"8.3.0",
+    "react":"19.3.0",
+    "react-dom":"19.3.0",
+    "lucide-react":"1.47.0"
   },
   "devDependencies":{}
 }
