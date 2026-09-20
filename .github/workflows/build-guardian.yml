@@ -4,6 +4,8 @@ on:
   workflow_run:
     workflows: ["Build Check"]
     types: [completed]
+  schedule:
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +15,7 @@ permissions:
 
 jobs:
   diagnose:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,10 +49,11 @@ jobs:
             }
             require('fs').writeFileSync('guardian-log.txt', output);
 
-      - name: Run a fresh manual build diagnosis
-        if: github.event_name == 'workflow_dispatch'
+      - name: Run a fresh proactive build diagnosis
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         run: |
-          printf '%s\n' "Manual diagnostic run." > guardian-log.txt
+          printf '%s\n' "Proactive diagnostic run." > guardian-log.txt
+          printf '%s\n' "Commit: $GITHUB_SHA" >> guardian-log.txt
           npm install >> guardian-log.txt 2>&1 || true
           npm run build >> guardian-log.txt 2>&1 || true
 
