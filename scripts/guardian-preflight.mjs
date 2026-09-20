@@ -92,7 +92,7 @@ if (guardian) {
 }
 
 const diagnosticKnowledge = [
-  "earliest error",
+  "first nonzero exit",
   "exit code",
   "dependency",
   "syntax",
