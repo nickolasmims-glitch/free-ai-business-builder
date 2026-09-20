@@ -60,6 +60,8 @@ jobs:
             require('fs').writeFileSync('guardian-log.txt', output);
 
       - name: Guardian preflight self-test
+        id: preflight
+        continue-on-error: true
         run: node scripts/guardian-preflight.mjs
 
       - name: Run fresh build and business-system audit
@@ -74,7 +76,19 @@ jobs:
           npm run build >> guardian-log.txt 2>&1 || true
 
       - name: AI 2 + AI 3 live research and revenue intelligence
-        run: node scripts/build-guardian.mjs guardian-log.txt > guardian-report.md
+        id: research
+        continue-on-error: true
+        run: |
+          node scripts/build-guardian.mjs guardian-log.txt > guardian-report.md || true
+          if [ ! -s guardian-report.md ]; then
+            {
+              echo "# Build Guardian AI Report"
+              echo
+              echo "Guardian report generation failed before a report could be produced."
+              echo
+              echo "Review the failing workflow step and earliest error in the job log."
+            } > guardian-report.md
+          fi
 
       - name: Publish Guardian Report
         if: always()
@@ -108,3 +122,11 @@ jobs:
                 body
               });
             }
+
+      - name: Guardian final gate
+        if: always()
+        run: |
+          echo "Preflight: ${{ steps.preflight.outcome }}"
+          echo "Research: ${{ steps.research.outcome }}"
+          if [ "${{ steps.preflight.outcome }}" != "success" ]; then exit 1; fi
+          if [ "${{ steps.research.outcome }}" != "success" ]; then exit 1; fi
