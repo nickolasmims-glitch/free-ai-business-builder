@@ -54,7 +54,7 @@ jobs:
           npm install >> guardian-log.txt 2>&1 || true
           npm run build >> guardian-log.txt 2>&1 || true
 
-      - name: Analyze failure
+      - name: Research the internet for current fixes
         run: node scripts/build-guardian.mjs guardian-log.txt > guardian-report.md
 
       - name: Publish Guardian Report
