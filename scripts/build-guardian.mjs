@@ -27,7 +27,12 @@ const researchPlan = [
   ["Payments","2026 SaaS payments subscriptions usage billing Stripe"],
   ["Reliability","2026 Vercel production deployment observability rollback AI apps"],
   ["Security","2026 GitHub Actions least privilege secrets automation security"],
-  ["Compliance","2026 FTC advertising endorsements reviews disclosures AI business claims"]
+  ["Compliance","2026 FTC advertising endorsements reviews disclosures AI business claims"],
+  ["Google Trends demand signals","2026 Google Trends trending searches product validation demand discovery"],
+  ["Google Play monetization","2026 Google Play subscriptions one-time products billing app monetization"],
+  ["Google Ads conversion","2026 Google Ads conversion tracking customer acquisition ROI app"],
+  ["Google Cloud AI apps","2026 Google Cloud build AI apps agents production deployment"],
+  ["Money-making app strategy","2026 profitable micro SaaS AI app recurring revenue customer acquisition retention"]
 ];
 
 async function ddgSearch(q) {
@@ -48,6 +53,18 @@ for (const [theme,q] of researchPlan) {
   research.push({theme,query:q,results:await ddgSearch(q)});
 }
 
+async function googleTrendsUS() {
+  try {
+    const res = await fetch("https://trends.google.com/trending/rss?geo=US",{headers:{"user-agent":"Mozilla/5.0 Build-Guardian/5.0"}});
+    if (!res.ok) return [];
+    const xml = await res.text();
+    return [...xml.matchAll(/<item>[\\s\\S]*?<title>([\\s\\S]*?)<\\/title>[\\s\\S]*?<traffic>([\\s\\S]*?)<\\/traffic>[\\s\\S]*?<\\/item>/gi)]
+      .slice(0,20)
+      .map(m=>({topic:m[1].replace(/<!\\[CDATA\\[|\\]\\]>/g,"").trim(),traffic:m[2].replace(/<!\\[CDATA\\[|\\]\\]>/g,"").trim()}));
+  } catch { return []; }
+}
+const trendSnapshot = await googleTrendsUS();
+
 const official = [
  ["Stripe AI pricing","https://stripe.com/guides/pricing-ai-products-lessons-from-leading-ai-companies"],
  ["Stripe SaaS pricing","https://stripe.com/resources/more/saas-pricing-and-packaging-strategy"],
@@ -61,6 +78,13 @@ const official = [
  ["Vercel docs","https://vercel.com/docs"],
  ["FTC advertising guidance","https://www.ftc.gov/business-guidance/resources/advertising-faqs-guide-small-business"],
  ["FTC endorsements and reviews","https://www.ftc.gov/business-guidance/advertising-marketing/endorsements-influencers-reviews"],
+ ["Google Trends","https://trends.google.com/trends/"],
+ ["Google Cloud build AI apps","https://cloud.google.com/use-cases/how-to-build-an-app-with-ai"],
+ ["Google Cloud AI agents guide","https://cloud.google.com/resources/content/building-ai-agents"],
+ ["Google Play subscriptions","https://developer.android.com/google/play/billing/subscriptions"],
+ ["Google Play one-time products","https://developer.android.com/google/play/billing/one-time-products"],
+ ["Google Play Billing integration","https://developer.android.com/google/play/billing/integrate"],
+ ["Google Ads conversion measurement","https://support.google.com/google-ads/answer/1722022"],
  ["GitHub workflow syntax","https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax"],
  ["GitHub events/schedules","https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows"],
  ["GitHub security","https://docs.github.com/en/actions/reference/security/secure-use"],
