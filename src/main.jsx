@@ -1,13 +1,13 @@
 import React,{useEffect,useRef,useState} from "react";
 import {createRoot} from "react-dom/client";
-import {Search,Video,Scissors,TrendingUp,DollarSign,ShieldCheck,Play,Plus,Brain,ArrowLeft,CheckCircle2,Sparkles,Loader2,Copy,RefreshCw} from "lucide-react";
+import {Search,Video,Scissors,TrendingUp,DollarSign,ShieldCheck,Play,Plus,Brain,ArrowLeft,CheckCircle2,Sparkles,Loader2,Copy,RefreshCw,BarChart3} from "lucide-react";
 import "./styles.css";
 
 const modules=[
  {icon:Search,title:"Research Brain",text:"Find topics, gaps, audiences and commercial opportunities.",detail:"Turn a niche or problem into practical research opportunities."},
  {icon:Video,title:"Content Factory",text:"Turn research into original scripts, hooks, titles and production plans.",detail:"Build a complete content package from one approved idea."},
  {icon:Scissors,title:"Repurpose Engine",text:"Create platform-specific versions from every core idea.",detail:"Adapt one approved concept into multiple platform formats."},
- {icon:TrendingUp,title:"Growth Loop",text:"Measure results and feed what works back into research.",detail:"Use performance data to prioritize the next content cycle."},
+ {icon:TrendingUp,title:"Growth Loop",text:"Measure results and feed what works back into research.",detail:"Use verified performance data to prioritize the next content cycle."},
  {icon:DollarSign,title:"Revenue Engine",text:"Track ads, affiliates, sponsors, products and leads against targets.",detail:"Only verified revenue counts toward the $350,000 target."},
  {icon:ShieldCheck,title:"Trust & Compliance",text:"Flag copyright, reused-content, disclosure and policy risks.",detail:"Review risks before public publishing or monetization actions."}
 ];
@@ -21,6 +21,7 @@ function App(){
  const [aiProgress,setAiProgress]=useState(0);
  const [aiOutput,setAiOutput]=useState("");
  const [factory,setFactory]=useState(null);
+ const [metrics,setMetrics]=useState({views:"",watchTime:"",likes:"",comments:"",shares:"",clicks:"",conversions:"",revenue:""});
  const worker=useRef(null);
 
  useEffect(()=>{
@@ -71,6 +72,32 @@ CTAS: 3 natural CTA variants.
 REUSE CHECK: explain how each version adds original value and avoids repetitive/mass-produced content.
 Do not invent statistics, customers, revenue, quotes, or sources. Clearly label anything that needs verification.`);
  };
+
+ const generateGrowth=()=>{
+  const clean=Object.fromEntries(Object.entries(metrics).map(([k,v])=>[k,v||"0"]));
+  const seed=topic.trim()||factory?.seed||ideas[0]?.title||"the latest approved content";
+  generate(`Analyze this content performance record for "${seed}".
+VERIFIED/USER-ENTERED METRICS:
+Views: ${clean.views}
+Watch time or retention: ${clean.watchTime}
+Likes: ${clean.likes}
+Comments: ${clean.comments}
+Shares: ${clean.shares}
+Clicks: ${clean.clicks}
+Conversions: ${clean.conversions}
+Verified revenue: $${clean.revenue}
+
+Return exactly:
+WHAT THE DATA SHOWS: summarize only observable patterns; do not invent benchmarks.
+NEXT 3 TESTS: three specific content experiments with one variable changed at a time.
+TOPIC IDEAS: five follow-up topics based on the supplied data.
+HOOK TESTS: five new opening hooks.
+FORMAT TEST: one recommendation for length/format to test, clearly labeled as a test.
+RETIRE OR REWORK: identify what should be reworked only when the supplied data supports it.
+MEASUREMENT PLAN: what to record on the next cycle.
+Do not claim causation from correlation. Do not invent statistics, customers, revenue, sources, or results. If data is missing, say what is missing.`);
+ };
+
  const runAI=()=>{
   const seed=topic.trim()||ideas[0]?.title||"an AI-powered small business opportunity";
   generate(`Analyze this opportunity: "${seed}".
@@ -86,6 +113,11 @@ Keep it concise and do not claim unverified facts.`);
  const addIdea=()=>{if(!topic.trim())return;setIdeas(v=>[{title:topic.trim(),status:"Research queued",time:new Date().toLocaleTimeString()},...v]);setTopic("")};
  const run=()=>{setRunning(true);setTimeout(()=>{setRunning(false);setIdeas(v=>v.length?v:[{title:"AI business opportunity scan",status:"Cycle completed",time:new Date().toLocaleTimeString()}])},900)};
  const copy=()=>{if(aiOutput)navigator.clipboard?.writeText(aiOutput)};
+
+ const metricFields=[
+  ["views","Views"],["watchTime","Watch time / retention"],["likes","Likes"],["comments","Comments"],
+  ["shares","Shares"],["clicks","Clicks"],["conversions","Conversions"],["revenue","Verified revenue ($)"]
+ ];
 
  return <main>
   <header><div className="brand"><Brain size={28}/><span>AI Business Builder</span></div><div className="pill">FREE MODE · LOCAL AI</div></header>
@@ -105,6 +137,14 @@ Keep it concise and do not claim unverified facts.`);
     <div className="factorySteps"><span>01 Shorts scripts</span><span>02 TikTok versions</span><span>03 Hooks</span><span>04 Captions</span><span>05 CTAs</span><span>06 Reuse check</span></div>
     {aiStatus!=="idle"&&<div className="aiStatus"><span>{aiStatus==="starting"||aiStatus==="loading"||aiStatus==="generating"?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} {aiStatus==="loading"?`Loading local model ${Math.round(aiProgress)}%`:aiStatus==="generating"?"Repurposing…":aiStatus==="ready"?"Package ready":aiStatus==="error"?"AI error":"Starting…"}</span></div>}
     {aiOutput&&<><div className="outputActions"><button className="secondary" onClick={copy}><Copy size={15}/> Copy</button><button className="secondary" onClick={generateRepurpose}><RefreshCw size={15}/> Regenerate</button></div><div className="aiOutput">{aiOutput}</div></>}
+   </div> : active.title==="Growth Loop" ? <div className="moduleCard">
+    <h2><BarChart3 size={21}/> Growth Loop</h2>
+    <p>Enter real or imported performance data. The AI uses only the numbers you provide to design the next content experiments. Blank fields stay blank rather than becoming fake results.</p>
+    <div className="metricGrid">{metricFields.map(([key,label])=><label key={key}><span>{label}</span><input inputMode={key==="revenue"?"decimal":"numeric"} value={metrics[key]} onChange={e=>setMetrics(v=>({...v,[key]:e.target.value}))} placeholder="Enter verified data"/></label>)}</div>
+    <div className="inputRow"><input value={topic} onChange={e=>setTopic(e.target.value)} placeholder="Content topic / video name (optional)"/><button onClick={generateGrowth}><TrendingUp size={18}/> Analyze & Plan</button></div>
+    <div className="factorySteps"><span>01 Record data</span><span>02 Find patterns</span><span>03 Test hooks</span><span>04 Test topics</span><span>05 Measure again</span><span>06 Feed research</span></div>
+    {aiStatus!=="idle"&&<div className="aiStatus"><span>{aiStatus==="starting"||aiStatus==="loading"||aiStatus==="generating"?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} {aiStatus==="loading"?`Loading local model ${Math.round(aiProgress)}%`:aiStatus==="generating"?"Analyzing performance…":aiStatus==="ready"?"Growth plan ready":aiStatus==="error"?"AI error":"Starting…"}</span></div>}
+    {aiOutput&&<><div className="outputActions"><button className="secondary" onClick={copy}><Copy size={15}/> Copy</button><button className="secondary" onClick={generateGrowth}><RefreshCw size={15}/> Re-run analysis</button></div><div className="aiOutput">{aiOutput}</div></>}
    </div> :
    <div className="moduleCard"><h2>Run local AI</h2><p>Enter an opportunity and generate a practical next step.</p><div className="inputRow"><input value={topic} onChange={e=>setTopic(e.target.value)} onKeyDown={e=>e.key==="Enter"&&runAI()} placeholder="Enter an opportunity…"/><button onClick={runAI}><Sparkles size={18}/> Generate</button></div>{aiOutput&&<div className="aiOutput">{aiOutput}</div>}</div>}
   </section> : <>
