@@ -12,7 +12,7 @@ const diagnosticProtocol = [
   ["3. Classify","Classify as workflow syntax/trigger, runner/toolchain, dependency, source syntax, runtime, environment, network, security, or deployment failure."],
   ["4. Check the contract","Validate package.json, workflow YAML, required scripts, Node version, action versions, permissions, and expected files before touching application code."],
   ["5. Apply the smallest repair","Prefer one narrow change that addresses the root cause. Do not combine unrelated product features with a build repair."],
-  ["6. Verify twice","Run static preflight plus the production build. A report is not a pass; the build must actually exit 0."],
+  ["6. Verify twice","Run static preflight plus the production build. A report is not a pass; the build must actually exit 0. A nonzero exit code marks the check failed."],
   ["7. Protect known-good","Never overwrite a known-good production version while a diagnostic build is failing. Roll back or isolate experimental work."],
   ["8. Learn from recurrence","Record the failure signature, root cause, repair, commit, and verification result so the same class of defect gets a preventive check next time."],
   ["9. Security gate","Never put credentials in source/workflows; use least-privilege tokens, review external side effects, and keep irreversible actions approval-gated."],
