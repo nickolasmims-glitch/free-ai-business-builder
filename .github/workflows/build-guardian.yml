@@ -1,0 +1,91 @@
+name: Build Guardian AI
+
+on:
+  workflow_run:
+    workflows: ["Build Check"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  diagnose:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect failed build logs
+        if: github.event_name == 'workflow_run'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const jobs = await github.paginate(
+              github.rest.actions.listJobsForWorkflowRun,
+              {owner: context.repo.owner, repo: context.repo.repo, run_id: run.id, per_page: 100}
+            );
+            const failed = jobs.filter(j => j.conclusion === 'failure');
+            let output = `Workflow: ${run.name}\nRun: ${run.html_url}\nCommit: ${run.head_sha}\n\n`;
+            for (const job of failed) {
+              output += `=== JOB: ${job.name} ===\n`;
+              try {
+                const logs = await github.rest.actions.downloadJobLogsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  job_id: job.id
+                });
+                output += typeof logs.data === 'string' ? logs.data : JSON.stringify(logs.data);
+              } catch (error) {
+                output += `Unable to download job logs: ${error.message}`;
+              }
+              output += '\n\n';
+            }
+            require('fs').writeFileSync('guardian-log.txt', output);
+
+      - name: Run a fresh manual build diagnosis
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          printf '%s\n' "Manual diagnostic run." > guardian-log.txt
+          npm install >> guardian-log.txt 2>&1 || true
+          npm run build >> guardian-log.txt 2>&1 || true
+
+      - name: Analyze failure
+        run: node scripts/build-guardian.mjs guardian-log.txt > guardian-report.md
+
+      - name: Publish Guardian Report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('guardian-report.md', 'utf8');
+            const runUrl = context.payload.workflow_run?.html_url || `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions`;
+            const title = 'Build Guardian AI report';
+            const body = report + `\n\nSource run: ${runUrl}`;
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const guardianIssue = existing.find(i => i.title === title);
+            if (!guardianIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: guardianIssue.number,
+                body
+              });
+            }
