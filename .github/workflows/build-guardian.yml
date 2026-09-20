@@ -61,8 +61,12 @@ jobs:
 
       - name: Run fresh build and business-system audit
         run: |
-          printf '%s\n' "Proactive diagnostic and business audit." > guardian-log.txt
-          printf '%s\n' "Commit: $GITHUB_SHA" >> guardian-log.txt
+          if [ ! -s guardian-log.txt ]; then
+            printf '%s\n' "Proactive diagnostic and business audit." > guardian-log.txt
+            printf '%s\n' "Commit: $GITHUB_SHA" >> guardian-log.txt
+          else
+            printf '%s\n' "Fresh verification build for commit: $GITHUB_SHA" >> guardian-log.txt
+          fi
           npm install >> guardian-log.txt 2>&1 || true
           npm run build >> guardian-log.txt 2>&1 || true
 
