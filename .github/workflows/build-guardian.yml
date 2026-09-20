@@ -1,4 +1,4 @@
-name: Build Guardian AI
+name: Build Guardian AI + Revenue Scout
 
 on:
   workflow_run:
@@ -70,7 +70,7 @@ jobs:
           npm install >> guardian-log.txt 2>&1 || true
           npm run build >> guardian-log.txt 2>&1 || true
 
-      - name: Research the internet for current fixes and risks
+      - name: AI 2 + AI 3 live research and revenue intelligence
         run: node scripts/build-guardian.mjs guardian-log.txt > guardian-report.md
 
       - name: Publish Guardian Report
