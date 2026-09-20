@@ -13,5 +13,8 @@ A browser-first AI content and business operating system.
 ## Important
 Revenue targets are targets, not guarantees. Public publishing, account actions, spending and other consequential actions remain approval-gated.
 
+## Deployment
+Production build verified after the latest source repair. This marker exists to trigger a fresh Vercel deployment from the verified main branch.
+
 ## Status
 Phase 1 foundation.
