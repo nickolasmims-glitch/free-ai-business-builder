@@ -94,6 +94,7 @@ if (guardian) {
 const diagnosticKnowledge = [
   "first nonzero exit",
   "exit code",
+  "exit code 1",
   "dependency",
   "syntax",
   "workflow",
