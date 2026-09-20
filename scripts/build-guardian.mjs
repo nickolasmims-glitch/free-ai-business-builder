@@ -75,9 +75,10 @@ async function googleTrendsUS() {
     const res = await fetch("https://trends.google.com/trending/rss?geo=US",{headers:{"user-agent":"Mozilla/5.0 Build-Guardian/5.0"}});
     if (!res.ok) return [];
     const xml = await res.text();
-    return [...xml.matchAll(/<item>[\\s\\S]*?<title>([\\s\\S]*?)<\\/title>[\\s\\S]*?<traffic>([\\s\\S]*?)<\\/traffic>[\\s\\S]*?<\\/item>/gi)]
+    const itemPattern = /<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<traffic>([\s\S]*?)<\/traffic>[\s\S]*?<\/item>/gi;
+    return [...xml.matchAll(itemPattern)]
       .slice(0,20)
-      .map(m=>({topic:m[1].replace(/<!\\[CDATA\\[|\\]\\]>/g,"").trim(),traffic:m[2].replace(/<!\\[CDATA\\[|\\]\\]>/g,"").trim()}));
+      .map(m=>({topic:m[1].replace(/<!\[CDATA\[|\]\]>/g,"").trim(),traffic:m[2].replace(/<!\[CDATA\[|\]\]>/g,"").trim()}));
   } catch { return []; }
 }
 const trendSnapshot = await googleTrendsUS();
