@@ -45,7 +45,11 @@ const researchPlan = [
   ["Google Play monetization","2026 Google Play subscriptions one-time products billing app monetization"],
   ["Google Ads conversion","2026 Google Ads conversion tracking customer acquisition ROI app"],
   ["Google Cloud AI apps","2026 Google Cloud build AI apps agents production deployment"],
-  ["Money-making app strategy","2026 profitable micro SaaS AI app recurring revenue customer acquisition retention"]
+  ["Money-making app strategy","2026 profitable micro SaaS AI app recurring revenue customer acquisition retention"],
+  ["Zero-budget acquisition","2026 free customer acquisition organic SEO communities referrals partnerships direct outreach no ad spend"],
+  ["Productized AI services","2026 AI automation productized service pricing small business fast delivery"],
+  ["Revenue sprint validation","2026 sell before build pre-sell customer discovery deposits productized service"],
+  ["Free distribution","2026 organic distribution free tools directories communities content search demand generation"]
 ];
 
 async function ddgSearch(q) {
@@ -151,6 +155,17 @@ for (const [area,re] of checks) {
   addAudit(ok?"PASS":(high?"HIGH":"MEDIUM"),area,ok?"FOUND":"GAP",ok?"Relevant implementation markers exist.":"No strong implementation marker was found in the production source.",ok?"Continue measuring it.":"Add a concrete workflow/UI/data model and verify it with the production build.");
 }
 
+const zeroBudgetPlaybook = [
+ ["Organic search","Create useful pages around validated buyer questions; track impressions, clicks, leads and sales."],
+ ["Direct prospect research","Build small relevant prospect lists from public business information; draft personalized outreach and require human approval before sending."],
+ ["Referrals","Ask satisfied customers or contacts for specific introductions; track referral source and conversion."],
+ ["Partnerships","Offer referral or fulfillment partnerships to complementary businesses without buying ads."],
+ ["Communities","Answer real questions in relevant communities without spam; link only when it directly helps."],
+ ["Free lead magnet","Give away a useful calculator, checklist, audit or template that naturally leads to the paid offer."],
+ ["Productized service","Sell a fixed-scope result first, then automate the repeated workflow after demand is proven."],
+ ["Pre-sell validation","Present the offer and collect qualified interest before spending time building a large product."]
+];
+
 const opportunityModels = [
  ["B2B micro-SaaS","Solve one expensive, recurring business problem for a narrow customer segment; charge subscription or usage."],
  ["AI workflow automation","Automate a bounded repetitive workflow with measurable time/cost savings; meter usage where AI cost varies."],
@@ -180,6 +195,20 @@ out+="- **$1,000 sprint:** prioritize offers that can be fulfilled manually with
 out+="- **Zero-cost rule:** favor free/public research, organic distribution, referrals, partnerships, direct prospecting, and existing infrastructure; flag any tactic that requires paid software, ads, inventory, or credits before use.\n";
 out+="- **Evidence rule:** trends are signals, not proof of willingness to pay. Require buyer/problem evidence and verified transactions before declaring a model successful.\n";
 out+="- **Never fabricate:** no invented customers, leads, revenue, demand, testimonials, search volume, or conversion rates.\n\n";
+out+="## AI 3 revenue sprint intelligence\n\n";
+out+="**Target:** $1,000 by Friday, September 25, 2026. This is an execution goal, not a guaranteed outcome. AI 3 must optimize for zero ad spend and near-zero software cost, using free/public research and existing infrastructure wherever possible.\n\n";
+out+="### Revenue math to test\n\n";
+out+="- Test combinations such as 4 × $250, 5 × $200, 10 × $100, or 20 × $50 based on a real offer and buyer. These are planning scenarios, not forecasts.\n";
+out+="- Prioritize offers with a clear buyer, deliverable, price, proof/verification step, and repeatable acquisition path.\n";
+out+="- Do not spend on ads, paid data, premium APIs, or software unless the user explicitly approves a cost and the economics are documented first.\n";
+out+="- Never claim a sale, lead, customer, trend, or revenue result unless it is verified.\n\n";
+out+="### Zero-budget acquisition playbook\n\n";
+for(const [name,desc] of zeroBudgetPlaybook) out+=`- **${name}:** ${desc}\n`;
+out+="\n";
+out+="### AI 3 operating loop\n\n";
+out+="- Research demand → identify buyer/problem → formulate offer → calculate price/margin → create free distribution asset → identify qualified prospects → draft personalized outreach → human approval → deliver → verify payment → record conversion → improve offer → repeat.\n";
+out+="- Record source, prospect, offer, price, status, next action, conversion, revenue, fulfillment time, and cost on every cycle.\n";
+out+="- If a channel produces no qualified signals after a defined test, reallocate effort instead of blindly repeating it.\n\n";
 out+="## Money-making app intelligence\n\n";
 out+="### Core build rules\n\n";
 out+="- **Problem first:** start with a painful, specific customer problem and define a measurable success outcome before adding features.\n";
