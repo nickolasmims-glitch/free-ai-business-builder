@@ -10,7 +10,8 @@ const modules=[
  {icon:TrendingUp,title:"Growth Loop",text:"Measure results and feed what works back into research.",detail:"Use verified performance data to prioritize the next content cycle."},
  {icon:DollarSign,title:"Revenue Engine",text:"Track ads, affiliates, sponsors, products and leads against targets.",detail:"Track verified income, expenses and profit across your business systems."},
  {icon:ShieldCheck,title:"Trust & Compliance",text:"Flag copyright, reused-content, disclosure and policy risks.",detail:"Review risks before public publishing or monetization actions."},
- {icon:Youtube,title:"YouTube Publisher",text:"Connect YouTube, upload videos and schedule publishing.",detail:"Authorize your channel, upload a finished video, and schedule it directly through YouTube."},\n {icon:Upload,title:"Automatic Video Creator",text:"Turn a topic into a ready-to-upload video.",detail:"Generate the script, scenes and browser-rendered video automatically."}
+ {icon:Youtube,title:"YouTube Publisher",text:"Connect YouTube, upload videos and schedule publishing.",detail:"Authorize your channel, upload a finished video, and schedule it directly through YouTube."},
+ {icon:Upload,title:"Automatic Video Creator",text:"Turn a topic into a ready-to-upload video.",detail:"Generate the script, scenes and browser-rendered video automatically."}
 ];
 
 function App(){
