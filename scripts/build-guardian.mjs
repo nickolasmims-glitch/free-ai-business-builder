@@ -9,6 +9,19 @@ const findings = [], audit = [], research = [];
 const add = (severity,title,evidence,repair) => findings.push({severity,title,evidence,repair});
 const addAudit = (severity,area,status,evidence,action) => audit.push({severity,area,status,evidence,action});
 
+const revenueScoutPlan = [
+  ["Zero-cost acquisition","2026 free customer acquisition channels organic search communities referrals partnerships direct prospect research"],
+  ["Fast cash offers","2026 productized service offers small business AI automation local business workflow pricing"],
+  ["Buyer pain signals","2026 small business pain points repetitive tasks lead followup missed calls reviews scheduling reporting"],
+  ["Free distribution","2026 free distribution strategies SEO Google Business Profile content communities referrals partnerships"],
+  ["Micro-product opportunities","2026 simple AI tools templates calculators generators workflow products customers pay"],
+  ["No-cost validation","2026 validate SaaS idea without spending money preorders interviews landing page waitlist"],
+  ["Recurring revenue","2026 recurring revenue models AI services retainers subscriptions memberships"],
+  ["Sales conversion","2026 B2B sales funnel discovery offer followup close small business"],
+  ["Latest AI app opportunities","2026 emerging AI app use cases small business automation agents"],
+  ["Revenue experiments","2026 low cost revenue experiments productized service digital product lead generation"],
+];
+
 const researchPlan = [
   ["Problem discovery","2026 customer discovery painful business problems willingness to pay MVP product market fit"],
   ["AI SaaS monetization","2026 AI SaaS pricing subscription usage based hybrid credits outcome based"],
@@ -49,7 +62,7 @@ async function ddgSearch(q) {
   } catch { return []; }
 }
 
-for (const [theme,q] of researchPlan) {
+for (const [theme,q] of [...revenueScoutPlan,...researchPlan]) {
   research.push({theme,query:q,results:await ddgSearch(q)});
 }
 
@@ -159,8 +172,14 @@ for(const [area,flag] of risky)
 if(!findings.length) add("INFO","No known build failure signature matched","The current log did not match a known failure pattern.","Use the business audit and current research to choose the next safe improvement.");
 
 let out="# Build Guardian AI Report\n\n";
-out+="**Role:** proactive engineering + money-making-app research agent for AI 1. Every run refreshes public-web research across customer discovery, monetization, acquisition, retention, unit economics, AI cost control, agent architecture, payments, compliance, and reliability. It audits the codebase and reports concrete gaps. It does not silently deploy, send outreach, spend money, or change production.\n\n";
+out+="**Role:** AI 2 engineering guardian + **AI 3 Revenue Scout**. AI 3 continuously refreshes public-web research for zero-cost acquisition, customer pain, fast-to-sell offers, micro-products, recurring revenue, and new AI-app opportunities, then feeds findings into AI 1. AI 2 audits code/build health. Neither silently deploys, spends money, or sends outreach.  Every run refreshes public-web research across customer discovery, monetization, acquisition, retention, unit economics, AI cost control, agent architecture, payments, compliance, and reliability. It audits the codebase and reports concrete gaps. It does not silently deploy, send outreach, spend money, or change production.\n\n";
 
+out+="## AI 3 Revenue Scout\n\n";
+out+="- **Freshness loop:** rerun scheduled research and compare new findings against the existing business model before recommending a change.\n";
+out+="- **$1,000 sprint:** prioritize offers that can be fulfilled manually with existing free tools, have a clear buyer, a concrete deliverable, and a short path from prospect to payment.\n";
+out+="- **Zero-cost rule:** favor free/public research, organic distribution, referrals, partnerships, direct prospecting, and existing infrastructure; flag any tactic that requires paid software, ads, inventory, or credits before use.\n";
+out+="- **Evidence rule:** trends are signals, not proof of willingness to pay. Require buyer/problem evidence and verified transactions before declaring a model successful.\n";
+out+="- **Never fabricate:** no invented customers, leads, revenue, demand, testimonials, search volume, or conversion rates.\n\n";
 out+="## Money-making app intelligence\n\n";
 out+="### Core build rules\n\n";
 out+="- **Problem first:** start with a painful, specific customer problem and define a measurable success outcome before adding features.\n";
