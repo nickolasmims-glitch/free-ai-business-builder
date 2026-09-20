@@ -7,23 +7,14 @@ on:
   schedule:
     - cron: "17 */2 * * *"
   workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - "src/**"
-      - "scripts/**"
-      - ".github/workflows/**"
-      - "package.json"
-      - "index.html"
-
 permissions:
   actions: read
   contents: read
   issues: write
 
 concurrency:
-  group: build-guardian-${{ github.ref }}
-  cancel-in-progress: true
+  group: build-guardian-${{ github.event_name }}-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   diagnose:
@@ -79,7 +70,10 @@ jobs:
         id: research
         continue-on-error: true
         run: |
-          node scripts/build-guardian.mjs guardian-log.txt > guardian-report.md || true
+          set +e
+          node scripts/build-guardian.mjs guardian-log.txt > guardian-report.md
+          research_status=$?
+          set -e
           if [ ! -s guardian-report.md ]; then
             {
               echo "# Build Guardian AI Report"
@@ -89,6 +83,7 @@ jobs:
               echo "Review the failing workflow step and earliest error in the job log."
             } > guardian-report.md
           fi
+          exit $research_status
 
       - name: Publish Guardian Report
         if: always()
