@@ -63,8 +63,15 @@ jobs:
           else
             printf '%s\n' "Fresh verification build for commit: $GITHUB_SHA" >> guardian-log.txt
           fi
-          npm install --no-audit --no-fund >> guardian-log.txt 2>&1 || true
-          npm run build >> guardian-log.txt 2>&1 || true
+          set +e
+          npm install --no-audit --no-fund >> guardian-log.txt 2>&1
+          install_status=$?
+          npm run build >> guardian-log.txt 2>&1
+          build_status=$?
+          set -e
+          echo "install_status=$install_status" >> guardian-log.txt
+          echo "build_status=$build_status" >> guardian-log.txt
+          printf '%s\n' "$install_status $build_status" > guardian-build-status.txt
 
       - name: AI 2 + AI 3 live research and revenue intelligence
         id: research
@@ -123,5 +130,8 @@ jobs:
         run: |
           echo "Preflight: ${{ steps.preflight.outcome }}"
           echo "Research: ${{ steps.research.outcome }}"
+          build_status="$(cat guardian-build-status.txt 2>/dev/null || echo 'unknown unknown')"
+          echo "Build statuses: $build_status"
           if [ "${{ steps.preflight.outcome }}" != "success" ]; then exit 1; fi
           if [ "${{ steps.research.outcome }}" != "success" ]; then exit 1; fi
+          if [ "$build_status" != "0 0" ]; then exit 1; fi
