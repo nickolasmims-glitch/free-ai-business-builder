@@ -1,6 +1,7 @@
 import { pipeline } from "@huggingface/transformers";
 
 let generatorPromise = null;
+let generating = false;
 
 async function getGenerator(progress_callback) {
   if (!generatorPromise) {
@@ -45,13 +46,19 @@ self.onmessage = async (event) => {
   const { type, prompt } = event.data || {};
   if (type !== "generate") return;
 
+  if (generating) {
+    self.postMessage({ type: "status", status: "busy" });
+    return;
+  }
+  generating = true;
+
   try {
     self.postMessage({ type: "status", status: "loading" });
     const generator = await getGenerator((info) => {
       if (info?.status === "progress") {
         self.postMessage({
           type: "progress",
-          progress: Number(info.progress || 0)
+          progress: Math.max(0, Math.min(100, Number(info.progress || 0)))
         });
       }
     });
@@ -80,9 +87,14 @@ self.onmessage = async (event) => {
       text: typeof text === "string" ? text.trim() : JSON.stringify(text)
     });
   } catch (error) {
+    // Allow a later request to retry a failed model load instead of keeping
+    // a rejected promise cached forever.
+    generatorPromise = null;
     self.postMessage({
       type: "error",
       error: error?.message || "Browser AI could not run on this device."
     });
+  } finally {
+    generating = false;
   }
 };
