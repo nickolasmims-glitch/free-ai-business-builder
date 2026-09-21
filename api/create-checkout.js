@@ -20,7 +20,6 @@ export default async function handler(req,res){
     params.set("billing_address_collection","required");
     params.set("phone_number_collection[enabled]","true");
     params.set("payment_method_types[0]","card");
-    params.set("payment_intent_data[payment_method_options][card][request_three_d_secure]","any");
     params.set("payment_intent_data[description]",offer);
     params.set("payment_intent_data[metadata][order_id]",orderId);
     params.set("payment_intent_data[metadata][customer_name]",name);
