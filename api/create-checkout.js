@@ -13,6 +13,7 @@ export default async function handler(req,res){
     const idem=String(idempotencyKey||crypto.randomUUID());
     const params=new URLSearchParams();
     params.set("mode","payment");
+    params.set("managed_payments[enabled]","false");
     params.set("success_url",successUrl||"https://free-ai-business-builder.vercel.app/?payment=success&session_id={CHECKOUT_SESSION_ID}");
     params.set("cancel_url",cancelUrl||"https://free-ai-business-builder.vercel.app/?payment=cancelled");
     params.set("customer_email",normalizedEmail);
