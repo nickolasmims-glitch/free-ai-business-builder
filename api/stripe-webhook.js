@@ -41,8 +41,18 @@ export default async function handler(req,res){
 
       // Only a Stripe-confirmed paid session is treated as revenue.
       if(paymentStatus==="paid"){
+        const orderId=s.metadata?.order_id||"";
+        const updateParams=new URLSearchParams();
+        updateParams.set("metadata[fulfillment_status]","paid_pending_fulfillment");
+        updateParams.set("metadata[verified_at]",new Date().toISOString());
+        if(orderId) updateParams.set("metadata[order_id]",orderId);
+        await fetch("https://api.stripe.com/v1/checkout/sessions/"+encodeURIComponent(s.id),{
+          method:"POST",
+          headers:{"Authorization":"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded"},
+          body:updateParams
+        });
         await notify(customer,"Payment received — next steps",
-          `<p>Payment received for <strong>${offer}</strong>.</p><p>Amount: $${amount.toFixed(2)}</p><p>Your order is recorded and the fulfillment workflow can begin.</p>`);
+          `<p>Payment received for <strong>${offer}</strong>.</p><p>Amount: ${amount.toFixed(2)}</p><p>Your order is recorded and the fulfillment workflow can begin.</p>`);
       }
 
       console.log(JSON.stringify({
