@@ -7,7 +7,7 @@ export default async function handler(req,res){
     const {name,email,offer,price,successUrl,cancelUrl,idempotencyKey}=req.body||{};
     const amount=Math.round(Number(price)*100);
     const normalizedEmail=String(email||"").trim();
-    const validEmail=/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail);
+    const validEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
     if(!String(name||"").trim()||!validEmail||!offer||!Number.isFinite(amount)||amount<100) return res.status(400).json({error:"name, a valid email, offer and a valid price of at least $1 are required"});
     const orderId="ord_"+crypto.randomUUID();
     const idem=String(idempotencyKey||crypto.randomUUID());
