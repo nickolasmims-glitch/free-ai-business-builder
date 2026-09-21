@@ -8,6 +8,6 @@ export default async function handler(req,res){
   const s=await r.json();
   if(!r.ok)return res.status(502).json({error:s.error?.message||"Stripe lookup failed"});
   const meta=s.metadata||{};
-  return res.status(200).json({ok:true,sessionId:s.id,orderId:meta.order_id||"",status:s.status,paymentStatus:s.payment_status,fulfillmentStatus:meta.fulfillment_status||"awaiting_payment",amountTotal:(Number(s.amount_total)||0)/100,currency:s.currency,customerEmail:s.customer_details?.email||s.customer_email||"",offer:meta.offer||"",paid:s.payment_status==="paid"});
+  return res.status(200).json({ok:true,sessionId:s.id,orderId:meta.order_id||"",status:s.status,paymentStatus:s.payment_status,fulfillmentStatus:meta.fulfillment_status||"awaiting_payment",amountTotal:(Number(s.amount_total)||0)/100,currency:s.currency,customerEmail:s.customer_details?.email||s.customer_email||"",offer:meta.offer||"",livemode:s.livemode===true,paid:s.payment_status==="paid"});
  }catch(e){return res.status(500).json({error:e.message||"Payment lookup error"});}
 }
