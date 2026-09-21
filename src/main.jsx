@@ -35,7 +35,7 @@ function App(){
  useEffect(()=>{try{localStorage.setItem("aibb_activity",JSON.stringify(activity.slice(0,50)))}catch{}},[activity]);
  useEffect(()=>{try{localStorage.setItem("aibb_prospects",JSON.stringify(prospects.slice(0,100)))}catch{}},[prospects]);
  useEffect(()=>{try{localStorage.setItem("aibb_offers",JSON.stringify(offers.slice(0,50)))}catch{}},[offers]);
- useEffect(()=>{try{localStorage.setItem("aibb_ledger",JSON.stringify(ledger.slice(0,100)))}catch{}},[ledger]);
+ useEffect(()=>{try{localStorage.setItem("aibb_ledger",JSON.stringify(ledger.slice(0,100)))}catch{}},[ledger]); useEffect(()=>{try{if(localStorage.getItem("aibb_stripe_ledger_migrated")==="1")return;const next=ledger.map(p=>{const source=String(p.source||"");if(source.startsWith("Stripe · ")&&p.status==="Verified"&&!source.includes(" · Live"))return {...p,status:"Test",source:source+" · Test"};return p});if(JSON.stringify(next)!==JSON.stringify(ledger))setLedger(next);localStorage.setItem("aibb_stripe_ledger_migrated","1")}catch{}},[]);
  useEffect(()=>{try{localStorage.setItem("aibb_scorecard",JSON.stringify(scorecard))}catch{}},[scorecard]);
  const logActivity=(system,action,status="Completed")=>setActivity(v=>[{system,action,status,time:new Date().toLocaleString()},...v].slice(0,50));
 
