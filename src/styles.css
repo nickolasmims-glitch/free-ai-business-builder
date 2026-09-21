@@ -11,3 +11,6 @@ html{background:#09090b;overflow-x:hidden;-webkit-text-size-adjust:100%}body{ove
 @media(max-width:380px){.commandStats{grid-template-columns:1fr}.scoreBox .metricGrid{grid-template-columns:1fr}}
 
 .launchPad{margin:24px 0;border:1px solid #27272a;border-radius:15px;padding:22px;background:#111113}.launchGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.launchGrid>div{border:1px solid #27272a;border-radius:10px;padding:14px;background:#09090b}.launchGrid b{display:block;font-size:13px;margin-bottom:6px}.launchGrid span{display:block;color:#a1a1aa;font-size:12px;line-height:1.5}.launchActions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.launchActions span{color:#71717a;font-size:12px;line-height:1.5;max-width:720px}@media(max-width:760px){.launchPad{padding:15px}.launchGrid{grid-template-columns:1fr}.launchActions{display:grid}.launchActions button{width:100%;justify-content:center}}
+
+.checkoutPanel{margin-top:16px;border:1px solid #27272a;border-radius:12px;padding:16px;background:#09090b;display:grid;gap:14px}.checkoutPanel h3{margin:4px 0}.checkoutPanel .metricGrid{margin:0}.checkoutPanel button{justify-content:center}.checkoutPanel .revenueGap{margin:0}
+@media(max-width:760px){.checkoutPanel{padding:13px}.checkoutPanel .metricGrid{grid-template-columns:1fr}}
