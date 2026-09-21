@@ -1,93 +1,78 @@
 import crypto from "node:crypto";
 
-function verify(raw,signature,secret){
-  const parts=Object.fromEntries(String(signature||"").split(",").map(x=>x.split("=")));
-  if(!parts.t||!parts.v1)throw new Error("Invalid Stripe signature");
-  const age=Math.abs(Date.now()/1000-Number(parts.t));
-  if(age>300)throw new Error("Expired Stripe signature");
-  const expected=crypto.createHmac("sha256",secret).update(parts.t+"."+raw).digest("hex");
-  if(!crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(parts.v1)))throw new Error("Invalid Stripe signature");
+export const config = { api: { bodyParser: false } };
+
+async function readRawBody(req){
+  if(typeof req.body === "string") return req.body;
+  if(Buffer.isBuffer(req.body)) return req.body.toString("utf8");
+  const chunks=[];
+  for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));
+  return Buffer.concat(chunks).toString("utf8");
 }
 
-export const config={api:{bodyParser:false}};
-
-async function readBody(req){
-  const chunks=[];for await(const c of req)chunks.push(Buffer.from(c));return Buffer.concat(chunks);
-}
-
-async function notify(to,subject,html){
-  if(!process.env.RESEND_API_KEY||!process.env.FROM_EMAIL||!to)return;
-  await fetch("https://api.resend.com/emails",{
-    method:"POST",
-    headers:{"Authorization":`Bearer ${process.env.RESEND_API_KEY}`,"Content-Type":"application/json"},
-    body:JSON.stringify({from:process.env.FROM_EMAIL,to:[to],subject,html})
+function verifyStripeSignature(rawBody,signature,secret){
+  if(!signature||!secret) return false;
+  const parts=signature.split(",");
+  const timestampPart=parts.find(x=>x.startsWith("t="));
+  const signatures=parts.filter(x=>x.startsWith("v1=")).map(x=>x.slice(3));
+  const timestamp=Number(timestampPart?.slice(2));
+  if(!Number.isFinite(timestamp)||Math.abs(Math.floor(Date.now()/1000)-timestamp)>300) return false;
+  const signedPayload=timestamp+"."+rawBody;
+  const expected=crypto.createHmac("sha256",secret).update(signedPayload).digest("hex");
+  return signatures.some(sig=>{
+    try{
+      const a=Buffer.from(sig,"hex"),b=Buffer.from(expected,"hex");
+      return a.length===b.length&&crypto.timingSafeEqual(a,b);
+    }catch{return false}
   });
 }
 
+async function updateSessionMetadata(sessionId,metadata){
+  const body=new URLSearchParams();
+  for(const [key,value] of Object.entries(metadata)) body.set("metadata["+key+"]",String(value));
+  const r=await fetch("https://api.stripe.com/v1/checkout/sessions/"+encodeURIComponent(sessionId),{
+    method:"POST",
+    headers:{
+      "Authorization":"Bearer "+process.env.STRIPE_SECRET_KEY,
+      "Content-Type":"application/x-www-form-urlencoded"
+    },
+    body
+  });
+  const data=await r.json();
+  if(!r.ok) throw new Error(data.error?.message||"Stripe session update failed");
+  return data;
+}
+
 export default async function handler(req,res){
-  if(req.method!=="POST")return res.status(405).end();
-  if(!process.env.STRIPE_WEBHOOK_SECRET)return res.status(503).json({error:"Stripe webhook secret is not configured"});
+  if(req.method!=="POST") return res.status(405).json({error:"Method not allowed"});
+  if(!process.env.STRIPE_SECRET_KEY||!process.env.STRIPE_WEBHOOK_SECRET) return res.status(503).json({error:"Stripe webhook is not configured"});
   try{
-    const raw=(await readBody(req)).toString("utf8");
-    verify(raw,req.headers["stripe-signature"],process.env.STRIPE_WEBHOOK_SECRET);
-    const event=JSON.parse(raw);
+    const rawBody=await readRawBody(req);
+    const signature=req.headers["stripe-signature"];
+    if(!verifyStripeSignature(rawBody,signature,process.env.STRIPE_WEBHOOK_SECRET)) return res.status(400).json({error:"Invalid Stripe signature"});
+    const event=JSON.parse(rawBody);
+    const session=event.data?.object;
+    if(!session?.id) return res.status(200).json({received:true,ignored:true});
 
     if(event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded"){
-      const s=event.data.object;
-      const amount=(Number(s.amount_total)||0)/100;
-      const customer=s.customer_details?.email||s.customer_email||"";
-      const offer=s.metadata?.offer||"AI Business Builder offer";
-      const paymentStatus=s.payment_status||"paid";
-
-      // Only a Stripe-confirmed paid session is treated as revenue.
-      if(paymentStatus==="paid"){
-        const orderId=s.metadata?.order_id||"";
-        const updateParams=new URLSearchParams();
-        updateParams.set("metadata[fulfillment_status]","paid_pending_fulfillment");
-        updateParams.set("metadata[verified_at]",new Date().toISOString());
-        if(orderId) updateParams.set("metadata[order_id]",orderId);
-        await fetch("https://api.stripe.com/v1/checkout/sessions/"+encodeURIComponent(s.id),{
-          method:"POST",
-          headers:{"Authorization":"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded"},
-          body:updateParams
+      if(session.payment_status==="paid"){
+        await updateSessionMetadata(session.id,{
+          fulfillment_status:"paid",
+          fulfilled_at:new Date().toISOString(),
+          stripe_event_id:event.id
         });
-        await notify(customer,"Payment received — next steps",
-          `<p>Payment received for <strong>${offer}</strong>.</p><p>Amount: ${amount.toFixed(2)}</p><p>Your order is recorded and the fulfillment workflow can begin.</p>`);
       }
-
-      console.log(JSON.stringify({
-        event:"verified_payment",
-        sessionId:s.id,
-        paymentStatus,
-        amount,
-        customer,
-        offer,
-        at:new Date().toISOString()
-      }));
+    }else if(event.type==="checkout.session.async_payment_failed"){
+      await updateSessionMetadata(session.id,{
+        fulfillment_status:"payment_failed",
+        failed_at:new Date().toISOString(),
+        stripe_event_id:event.id
+      });
     }
 
-    if(event.type==="charge.dispute.created"||event.type==="charge.dispute.updated"||event.type==="charge.dispute.closed"){
-      const d=event.data.object;
-      const dispute={
-        event:event.type,
-        disputeId:d.id,
-        chargeId:d.charge,
-        amount:(Number(d.amount)||0)/100,
-        currency:d.currency,
-        status:d.status,
-        reason:d.reason,
-        at:new Date().toISOString()
-      };
-      console.warn(JSON.stringify({event:"payment_dispute",...dispute}));
-      if(process.env.DISPUTE_ALERT_EMAIL){
-        await notify(process.env.DISPUTE_ALERT_EMAIL,"Stripe dispute alert",
-          `<p>Stripe dispute event: <strong>${event.type}</strong></p><p>Dispute: ${d.id}</p><p>Amount: $${(Number(d.amount)||0)/100}</p><p>Reason: ${d.reason||"unknown"}</p><p>Status: ${d.status||"unknown"}</p>`);
-      }
-    }
-
-    return res.status(200).json({received:true});
+    return res.status(200).json({received:true,eventId:event.id,type:event.type});
   }catch(e){
-    console.error("stripe_webhook_error",e);
-    return res.status(400).json({error:e.message||"Webhook verification failed"});
+    console.error("Stripe webhook error",e);
+    return res.status(500).json({error:e.message||"Webhook processing failed"});
   }
 }
