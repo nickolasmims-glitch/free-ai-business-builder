@@ -35,13 +35,22 @@ export default async function handler(req,res){
     params.set("metadata[fulfillment_status]","awaiting_payment");
     params.set("metadata[risk_controls]","billing_address_required|phone_required|3ds_requested|stripe_radar|idempotency_keyed");
     if(process.env.TERMS_OF_SERVICE_URL) params.set("consent_collection[terms_of_service]","required");
-    const r=await fetch("https://api.stripe.com/v1/checkout/sessions",{
-      method:"POST",
-      headers:{"Authorization":"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":idem},
-      body:params
-    });
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),12000);
+    let r;
+    try{
+      r=await fetch("https://api.stripe.com/v1/checkout/sessions",{
+        method:"POST",
+        headers:{"Authorization":"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":idem},
+        body:params,
+        signal:controller.signal
+      });
+    }finally{clearTimeout(timeout);}
     const data=await r.json();
     if(!r.ok) return res.status(502).json({error:data.error?.message||"Stripe checkout creation failed"});
     return res.status(200).json({ok:true,sessionId:data.id,orderId,url:data.url,riskControls:["billing_address_required","phone_required","3ds_requested","stripe_radar","idempotency_keyed"],termsRequired:Boolean(process.env.TERMS_OF_SERVICE_URL)});
-  }catch(e){return res.status(500).json({error:e.message||"Checkout error"});}
+  }catch(e){
+    if(e?.name==="AbortError") return res.status(504).json({error:"Stripe checkout timed out. Please try again."});
+    return res.status(500).json({error:e.message||"Checkout error"});
+  }
 }
