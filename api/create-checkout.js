@@ -19,7 +19,6 @@ export default async function handler(req,res){
     params.set("customer_creation","always");
     params.set("billing_address_collection","required");
     params.set("phone_number_collection[enabled]","true");
-    params.set("payment_method_types[0]","card");
     params.set("payment_intent_data[description]",offer);
     params.set("payment_intent_data[metadata][order_id]",orderId);
     params.set("payment_intent_data[metadata][customer_name]",name);
@@ -32,7 +31,7 @@ export default async function handler(req,res){
     params.set("metadata[customer_name]",name);
     params.set("metadata[offer]",offer);
     params.set("metadata[fulfillment_status]","awaiting_payment");
-    params.set("metadata[risk_controls]","billing_address_required|phone_required|3ds_requested|stripe_radar|idempotency_keyed");
+    params.set("metadata[risk_controls]","billing_address_required|phone_required|stripe_radar|idempotency_keyed");
     if(process.env.TERMS_OF_SERVICE_URL) params.set("consent_collection[terms_of_service]","required");
     const controller=new AbortController();
     const timeout=setTimeout(()=>controller.abort(),12000);
@@ -47,7 +46,7 @@ export default async function handler(req,res){
     }finally{clearTimeout(timeout);}
     const data=await r.json();
     if(!r.ok) return res.status(502).json({error:data.error?.message||"Stripe checkout creation failed"});
-    return res.status(200).json({ok:true,sessionId:data.id,orderId,url:data.url,riskControls:["billing_address_required","phone_required","3ds_requested","stripe_radar","idempotency_keyed"],termsRequired:Boolean(process.env.TERMS_OF_SERVICE_URL)});
+    return res.status(200).json({ok:true,sessionId:data.id,orderId,url:data.url,riskControls:["billing_address_required","phone_required","stripe_radar","idempotency_keyed"],termsRequired:Boolean(process.env.TERMS_OF_SERVICE_URL)});
   }catch(e){
     if(e?.name==="AbortError") return res.status(504).json({error:"Stripe checkout timed out. Please try again."});
     return res.status(500).json({error:e.message||"Checkout error"});
