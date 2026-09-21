@@ -86,7 +86,32 @@ RETURN EXACT SECTIONS: MISSION MATH; BEST TESTABLE OFFERS; LANE 1; LANE 2; LANE 
  const aiBox=aiStatus!=="idle"&&<div className="aiStatus"><span>{["starting","loading","generating"].includes(aiStatus)?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} {status}</span></div>;
  const output=<>{aiOutput&&<><div className="outputActions"><button className="secondary" onClick={copy}><Copy size={15}/> Copy</button><button className="secondary" onClick={()=>{if(active?.title==="Trust & Compliance")generateCompliance();else if(active?.title==="Revenue Engine")generateRevenuePlan();else if(active?.title==="Growth Loop")generateGrowth();else if(active?.title==="Repurpose Engine")generateRepurpose();else generateFactory()}}><RefreshCw size={15}/> Re-run</button></div><div className="aiOutput">{aiOutput}</div></>}</>;
 
- const launchMission=()=>{\n  if(offers.length===0){\n    setOffers([\n      {id:Date.now(),name:"AI Lead Follow-Up Audit",price:"500",status:"Test",leads:"0",proposals:"0",sales:"0"},\n      {id:Date.now()+1,name:"30-Day Content Repurpose Pack",price:"300",status:"Test",leads:"0",proposals:"0",sales:"0"},\n      {id:Date.now()+2,name:"AI Workflow Quick-Win Sprint",price:"750",status:"Test",leads:"0",proposals:"0",sales:"0"}\n    ]);\n  }\n  setScorecard(v=>({qualified:v.qualified||"0",approved:v.approved||"0",replies:v.replies||"0",conversations:v.conversations||"0",proposals:v.proposals||"0",conversions:v.conversions||"0",cash:v.cash||"0",fulfillment:v.fulfillment||"0",margin:v.margin||"0",toolCost:v.toolCost||"0",nextAction:v.nextAction||"Research 10 qualified prospects and prepare 3 approval-gated outreach drafts"}));\n  setTopic(v=>v||"Local service businesses that need more leads or faster follow-up");\n  logActivity("AI 3 Mission","Launch board initialized with three test offers and a first execution checkpoint");\n};\n\nreturn <main><header><div className="brand"><Brain size={28}/><span>AI Business Builder</span></div><div className="pill">FREE MODE · LOCAL AI</div></header>
+ const launchMission=()=>{
+  if(offers.length===0){
+    setOffers([
+      {id:Date.now(),name:"AI Lead Follow-Up Audit",price:"500",status:"Test",leads:"0",proposals:"0",sales:"0"},
+      {id:Date.now()+1,name:"30-Day Content Repurpose Pack",price:"300",status:"Test",leads:"0",proposals:"0",sales:"0"},
+      {id:Date.now()+2,name:"AI Workflow Quick-Win Sprint",price:"750",status:"Test",leads:"0",proposals:"0",sales:"0"}
+    ]);
+  }
+  setScorecard(v=>({...v,
+    qualified:v.qualified||"0",
+    approved:v.approved||"0",
+    replies:v.replies||"0",
+    conversations:v.conversations||"0",
+    proposals:v.proposals||"0",
+    conversions:v.conversions||"0",
+    cash:v.cash||"0",
+    fulfillment:v.fulfillment||"0",
+    margin:v.margin||"0",
+    toolCost:v.toolCost||"0",
+    nextAction:v.nextAction||"Research 10 qualified prospects and prepare 3 approval-gated outreach drafts"
+  }));
+  setTopic(v=>v||"Local service businesses that need more leads or faster follow-up");
+  logActivity("AI 3 Mission","Launch board initialized with three test offers and a first execution checkpoint");
+};
+
+return <main><header><div className="brand"><Brain size={28}/><span>AI Business Builder</span></div><div className="pill">FREE MODE · LOCAL AI</div></header>
  {active?<section className="modulePage"><button className="secondary back" onClick={()=>setActive(null)}><ArrowLeft size={17}/> Back to dashboard</button><div className="moduleIcon">{React.createElement(active.icon,{size:30})}</div><div className="eyebrow">AI MODULE</div><h1>{active.title}</h1><p className="moduleDetail">{active.detail}</p>
  {active.title==="Content Factory"?<div className="moduleCard"><h2>Content Factory</h2><p>One topic becomes a complete original content package.</p><div className="inputRow"><input value={topic} onChange={e=>setTopic(e.target.value)} onKeyDown={e=>e.key==="Enter"&&generateFactory()} placeholder="Enter your topic or niche…"/><button onClick={generateFactory}><Sparkles size={18}/> Build Package</button></div>{factory&&<div className="factorySteps"><span>01 Research</span><span>02 Hook</span><span>03 Outline</span><span>04 Shorts</span><span>05 Monetization</span><span>06 Compliance</span></div>}{aiBox}{output}</div>
  :active.title==="Repurpose Engine"?<div className="moduleCard"><h2>Repurpose Engine</h2><p>Create distinct YouTube Shorts and TikTok versions instead of simple duplicates.</p><div className="inputRow"><input value={topic} onChange={e=>setTopic(e.target.value)} onKeyDown={e=>e.key==="Enter"&&generateRepurpose()} placeholder="Enter a topic…"/><button onClick={generateRepurpose}><Scissors size={18}/> Repurpose</button></div><div className="factorySteps"><span>01 Shorts</span><span>02 TikTok</span><span>03 Hooks</span><span>04 Captions</span><span>05 CTAs</span><span>06 Reuse check</span></div>{aiBox}{output}</div>
