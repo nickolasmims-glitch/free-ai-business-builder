@@ -6,14 +6,16 @@ export default async function handler(req,res){
   try{
     const {name,email,offer,price,successUrl,cancelUrl,idempotencyKey}=req.body||{};
     const amount=Math.round(Number(price)*100);
-    if(!name||!email||!offer||!Number.isFinite(amount)||amount<100) return res.status(400).json({error:"name, email, offer and a valid price of at least $1 are required"});
+    const normalizedEmail=String(email||"").trim();
+    const validEmail=/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail);
+    if(!String(name||"").trim()||!validEmail||!offer||!Number.isFinite(amount)||amount<100) return res.status(400).json({error:"name, a valid email, offer and a valid price of at least $1 are required"});
     const orderId="ord_"+crypto.randomUUID();
     const idem=String(idempotencyKey||crypto.randomUUID());
     const params=new URLSearchParams();
     params.set("mode","payment");
     params.set("success_url",successUrl||"https://free-ai-business-builder.vercel.app/?payment=success&session_id={CHECKOUT_SESSION_ID}");
     params.set("cancel_url",cancelUrl||"https://free-ai-business-builder.vercel.app/?payment=cancelled");
-    params.set("customer_email",email);
+    params.set("customer_email",normalizedEmail);
     params.set("customer_creation","always");
     params.set("billing_address_collection","required");
     params.set("phone_number_collection[enabled]","true");
