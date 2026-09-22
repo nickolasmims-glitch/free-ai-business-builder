@@ -4,7 +4,7 @@ const cleanText = (value) =>
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
-    .replace(/\s+/g, " ")
+    .replace(/\\s+/g, " ")
     .trim();
 
 async function webResearch(query) {
@@ -18,7 +18,7 @@ async function webResearch(query) {
     if (!r.ok) throw new Error("Research provider returned " + r.status);
     const html = await r.text();
     const out = [];
-    const re = /<a[^>]+class="result__a"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+    const re = /<a[^>]+class="result__a"[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<a[^>]+class="result__snippet"[^>]*>([\\s\\S]*?)<\\/a>/gi;
     let m;
     while ((m = re.exec(html)) && out.length < 8) {
       out.push({ title: cleanText(m[1]), snippet: cleanText(m[2]) });
@@ -66,7 +66,7 @@ async function askAgent(agent, prompt) {
           {
             type: "message",
             role: "system",
-            content: "You are " + agent + " for AI Business Builder. Work aggressively toward the owner-defined goals, but NEVER change the goals, deadlines, success criteria, spend permissions, or owner identity rules. Separate FACTS, ASSUMPTIONS, TESTS, and VERIFIED RESULTS. Do not invent customers, revenue, testimonials, credentials, or outcomes. Real-money spending, purchases, transfers, refunds, external messages, and account changes require explicit owner approval."
+            content: "You are " + agent + " for AI Business Builder. Work aggressively toward the owner-defined goals, but NEVER change the goals, deadlines, success criteria, spend permissions, or owner identity rules. Your job is broader than marketing: continuously look for legitimate ways to create revenue, reduce avoidable cost, improve margins, create products/services, build recurring revenue, form partnerships, license assets, generate qualified leads, improve retention, and discover new business models. Separate FACTS, ASSUMPTIONS, TESTS, and VERIFIED RESULTS. Do not invent customers, revenue, testimonials, credentials, or outcomes. Real-money spending, purchases, transfers, refunds, external messages, and account changes require explicit owner approval. Never use deceptive, illegal, abusive, spammy, unauthorized, privacy-invasive, or platform-rule-evasion tactics."
           },
           {
             type: "message",
@@ -109,26 +109,12 @@ async function askAgent(agent, prompt) {
       };
     }
 
-    return {
-      status: "AI_COMPLETE",
-      model,
-      text: text.slice(0, 12000)
-    };
+    return { status: "AI_COMPLETE", model, text: text.slice(0, 16000) };
   } catch (e) {
     if (e?.name === "AbortError") {
-      return {
-        status: "AI_ERROR",
-        errorClass: "RETRYABLE_TIMEOUT",
-        model,
-        message: "AI Gateway request timed out after 90 seconds."
-      };
+      return { status: "AI_ERROR", errorClass: "RETRYABLE_TIMEOUT", model, message: "AI Gateway request timed out after 90 seconds." };
     }
-    return {
-      status: "AI_ERROR",
-      errorClass: "NETWORK_ERROR",
-      model,
-      message: String(e?.message || "AI Gateway network error").slice(0, 1000)
-    };
+    return { status: "AI_ERROR", errorClass: "NETWORK_ERROR", model, message: String(e?.message || "AI Gateway network error").slice(0, 1000) };
   } finally {
     clearTimeout(timeout);
   }
@@ -138,28 +124,18 @@ async function notify(subject, payload) {
   if (!process.env.RESEND_API_KEY || !process.env.FROM_EMAIL || !process.env.AUTOPILOT_REPORT_EMAIL) {
     return { sent: false, reason: "email_not_configured" };
   }
-
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        "Authorization": "Bearer " + process.env.RESEND_API_KEY,
-        "Content-Type": "application/json"
-      },
+      headers: { "Authorization": "Bearer " + process.env.RESEND_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: process.env.FROM_EMAIL,
         to: [process.env.AUTOPILOT_REPORT_EMAIL],
         subject,
-        html: "<pre style='white-space:pre-wrap'>" +
-          JSON.stringify(payload, null, 2).replace(/</g, "&lt;") +
-          "</pre>"
+        html: "<pre style='white-space:pre-wrap'>" + JSON.stringify(payload, null, 2).replace(/</g, "&lt;") + "</pre>"
       })
     });
-
-    if (!r.ok) {
-      const body = await r.text().catch(() => "");
-      return { sent: false, reason: "email_failed", status: r.status, detail: body.slice(0, 500) };
-    }
+    if (!r.ok) return { sent: false, reason: "email_failed", status: r.status };
     return { sent: true };
   } catch (e) {
     return { sent: false, reason: "email_exception", detail: String(e?.message || e).slice(0, 500) };
@@ -169,26 +145,32 @@ async function notify(subject, payload) {
 export async function runAgentCycle({ topic, cycle, goals, directCommand, verifiedRevenue }) {
   "use step";
 
-  const queries = [
-    topic + " urgent buyer problems buying signals 2026",
-    topic + " pricing packages competitors 2026",
-    topic + " AI automation ROI small business 2026",
-    topic + " missed leads follow-up appointment revenue local businesses 2026"
+  const researchAngles = [
+    topic + " customer demand buying intent 2026",
+    topic + " competitor pricing packages recurring revenue 2026",
+    topic + " B2B service opportunities automation 2026",
+    topic + " SaaS subscription opportunities small business 2026",
+    topic + " digital products templates reports data products demand 2026",
+    topic + " licensing white label reseller partnership opportunities 2026",
+    topic + " affiliate partner programs software services 2026",
+    topic + " lead generation referral fee business models 2026",
+    topic + " local business operational pain points willing to pay 2026",
+    topic + " retention churn upsell cross sell opportunities 2026",
+    topic + " marketplaces directories RFP procurement opportunities 2026",
+    topic + " cost reduction margin improvement automation opportunities 2026",
+    topic + " underserved niche problems customers pay to solve 2026",
+    topic + " emerging business models monetization opportunities 2026"
   ];
 
-  const researchSettled = await Promise.allSettled(queries.map(webResearch));
+  const researchSettled = await Promise.allSettled(researchAngles.map(webResearch));
   const researchResults = [];
   const researchErrors = [];
-
   for (const item of researchSettled) {
-    if (item.status === "fulfilled") {
-      researchResults.push(...item.value);
-    } else {
-      researchErrors.push(String(item.reason?.message || item.reason || "Research failed"));
-    }
+    if (item.status === "fulfilled") researchResults.push(...item.value);
+    else researchErrors.push(String(item.reason?.message || item.reason || "Research failed"));
   }
 
-  const research = researchResults.slice(0, 24);
+  const research = researchResults.slice(0, 60);
   const context = JSON.stringify({
     goals,
     cycle,
@@ -201,25 +183,24 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
   });
 
   const directCommandInstruction = directCommand
-    ? "\n\nOWNER DIRECT COMMAND (highest priority): " + directCommand + "\nFollow this command first. Guardian recommendations are non-blocking and must not delay, downgrade, replace, or cancel it. Standing safety rules still apply."
+    ? "\n\nOWNER DIRECT COMMAND (highest priority): " + directCommand + "\nFollow this command first. Standing safety and spending restrictions still apply."
     : "";
 
   const ai2 = await askAgent(
-    "AI 2 — Growth & Revenue Strategist",
-    "Analyze the evidence below. Protect the immutable owner goals. Treat verified Stripe revenue as the only source of truth for actual revenue. If pacing is behind, prioritize the fastest evidence-backed path to paid conversions. Identify the highest-evidence revenue opportunity, what should be tested next, what should be killed, and what evidence must be verified before claiming success. Create an internal decision plan; do not send messages or spend money. If research is partial or unavailable, explicitly mark the uncertainty and continue with only the evidence available." + directCommandInstruction + "\n\n" + context
+    "AI 2 — Opportunity Hunter & Business Development Engine",
+    "Go beyond marketing. Map the full revenue surface area. Research and identify legitimate opportunities across: direct sales, recurring subscriptions, premium tiers, productized services, B2B contracts, white-label/licensing, partnerships/referrals, affiliate revenue, lead generation, digital products, templates/data/reports, integrations, marketplace/procurement opportunities, retention/reactivation, upsells/cross-sells, and cost/margin improvements. Rank opportunities by evidence, time-to-test, expected economics, dependencies, and risk WITHOUT giving an overall political-style or subjective winner. Produce a concrete opportunity backlog with tests and measurable success criteria. Do not spend money or contact anyone.",
+    + directCommandInstruction + "\n\nEVIDENCE:\n" + context
   );
 
   const ai3 = await askAgent(
-    "AI 3 — Execution & Optimization Operator",
-    "Use the evidence and AI 2 strategy below. Treat verified Stripe revenue and pacing as the source of truth. If the team is behind pace, compress the feedback loop and prioritize actions tied directly to qualified buyers and paid conversions. Turn it into an execution queue: highest-priority tasks, experiments, measurement checkpoints, failure rules, and any approval requests. You may optimize internal execution, but do not change goals and do not execute paid or external actions without approval. If AI 2 failed, do not invent its conclusions; work from the research evidence and clearly mark the blocker." + directCommandInstruction + "\n\n" +
-      context +
-      "\n\nAI 2:\n" +
-      JSON.stringify(ai2)
+    "AI 3 — Revenue Operations & Monetization Engine",
+    "Turn the evidence and AI 2 findings into an execution queue that goes beyond marketing. For each opportunity, define the smallest legitimate test, required asset, metric, stop/continue rule, expected revenue path, margin implications, and owner approval requirement. Look specifically for non-marketing revenue: product/service creation, recurring billing, licensing, partnerships, referral economics, B2B packages, marketplace/procurement routes, customer retention, expansion revenue, and cost reductions. Do not purchase anything, move money, send external messages, or claim a result until it is verified. If evidence is weak, mark it as a hypothesis and research it further.",
+    + directCommandInstruction + "\n\nEVIDENCE:\n" + context + "\n\nAI 2 FINDINGS:\n" + JSON.stringify(ai2)
   );
 
   const approvals = [];
-  const combinedText = ((ai2.text || "") + "\n" + (ai3.text || ""));
-  if (/spend|purchase|paid tool|subscription|ad budget|contractor|domain|software/i.test(combinedText)) {
+  const combinedText = (ai2.text || "") + "\n" + (ai3.text || "");
+  if (/spend|purchase|paid tool|subscription|ad budget|contractor|domain|software|inventory|lead list|contract/i.test(combinedText)) {
     approvals.push({
       status: "Awaiting approval",
       reason: "AI 2/AI 3 identified a possible paid or financially binding action. Nothing was purchased.",
@@ -229,11 +210,7 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
 
   const modelFailures = [ai2, ai3]
     .filter(x => x.status === "AI_ERROR" || x.status === "WAITING_FOR_AI_GATEWAY_KEY")
-    .map(x => ({
-      status: x.status,
-      errorClass: x.errorClass || "NOT_CONFIGURED",
-      message: x.message || x.message
-    }));
+    .map(x => ({ status: x.status, errorClass: x.errorClass || "NOT_CONFIGURED", message: x.message || "" }));
 
   const result = {
     timestamp: new Date().toISOString(),
@@ -242,13 +219,33 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
     goals,
     verifiedRevenue: verifiedRevenue || null,
     researchCount: research.length,
+    researchAngles: researchAngles.length,
     researchErrors,
+    coverage: [
+      "sales",
+      "subscriptions",
+      "productized services",
+      "B2B",
+      "licensing",
+      "white-label",
+      "partnerships",
+      "referrals",
+      "affiliate revenue",
+      "lead generation",
+      "digital products",
+      "data/reports",
+      "integrations",
+      "marketplaces/procurement",
+      "retention",
+      "upsell/cross-sell",
+      "cost and margin improvement"
+    ],
     ai2,
     ai3,
     approvals,
     modelFailures
   };
 
-  const notification = await notify("AI 2 + AI 3 monitoring cycle " + cycle, result);
+  const notification = await notify("AI 2 + AI 3 multi-revenue research cycle " + cycle, result);
   return { ...result, notification };
 }
