@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       configured,
       enforcement: "NON_BLOCKING",
       commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
-      monitor: "4 durable cycles approximately every 6 hours; browser can be closed.",
+      monitor: "One focused revenue cycle per supervisor trigger; external scheduler keeps AI2/AI3 continuously active.",
       safeguards: [
         "owner-locked goals",
         "owner direct commands take priority over Guardian recommendations",
