@@ -166,7 +166,7 @@ async function notify(subject, payload) {
   }
 }
 
-export async function runAgentCycle({ topic, cycle, goals, directCommand }) {
+export async function runAgentCycle({ topic, cycle, goals, directCommand, verifiedRevenue }) {
   "use step";
 
   const queries = [
@@ -194,6 +194,7 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand }) {
     cycle,
     topic,
     directCommand: directCommand || null,
+    verifiedRevenue: verifiedRevenue || null,
     research,
     researchErrors,
     researchStatus: research.length ? "PARTIAL_OR_COMPLETE" : "FAILED"
@@ -205,12 +206,12 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand }) {
 
   const ai2 = await askAgent(
     "AI 2 — Growth & Revenue Strategist",
-    "Analyze the evidence below. Protect the immutable owner goals. Identify the highest-evidence revenue opportunity, what should be tested next, what should be killed, and what evidence must be verified before claiming success. Create an internal decision plan; do not send messages or spend money. If research is partial or unavailable, explicitly mark the uncertainty and continue with only the evidence available." + directCommandInstruction + "\n\n" + context
+    "Analyze the evidence below. Protect the immutable owner goals. Treat verified Stripe revenue as the only source of truth for actual revenue. If pacing is behind, prioritize the fastest evidence-backed path to paid conversions. Identify the highest-evidence revenue opportunity, what should be tested next, what should be killed, and what evidence must be verified before claiming success. Create an internal decision plan; do not send messages or spend money. If research is partial or unavailable, explicitly mark the uncertainty and continue with only the evidence available." + directCommandInstruction + "\n\n" + context
   );
 
   const ai3 = await askAgent(
     "AI 3 — Execution & Optimization Operator",
-    "Use the evidence and AI 2 strategy below. Turn it into an execution queue: highest-priority tasks, experiments, measurement checkpoints, failure rules, and any approval requests. You may optimize internal execution, but do not change goals and do not execute paid or external actions without approval. If AI 2 failed, do not invent its conclusions; work from the research evidence and clearly mark the blocker." + directCommandInstruction + "\n\n" +
+    "Use the evidence and AI 2 strategy below. Treat verified Stripe revenue and pacing as the source of truth. If the team is behind pace, compress the feedback loop and prioritize actions tied directly to qualified buyers and paid conversions. Turn it into an execution queue: highest-priority tasks, experiments, measurement checkpoints, failure rules, and any approval requests. You may optimize internal execution, but do not change goals and do not execute paid or external actions without approval. If AI 2 failed, do not invent its conclusions; work from the research evidence and clearly mark the blocker." + directCommandInstruction + "\n\n" +
       context +
       "\n\nAI 2:\n" +
       JSON.stringify(ai2)
@@ -239,6 +240,7 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand }) {
     cycle,
     topic,
     goals,
+    verifiedRevenue: verifiedRevenue || null,
     researchCount: research.length,
     researchErrors,
     ai2,
