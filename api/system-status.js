@@ -2,7 +2,6 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
   const aiGateway = Boolean(process.env.AI_GATEWAY_API_KEY);
-  const cronSecret = Boolean(process.env.CRON_SECRET);
   const stripe = Boolean(process.env.STRIPE_SECRET_KEY);
   const email = Boolean(process.env.RESEND_API_KEY && process.env.FROM_EMAIL && process.env.AUTOPILOT_REPORT_EMAIL);
 
@@ -23,7 +22,8 @@ export default async function handler(req, res) {
     supervisor: {
       platform: "GitHub Actions",
       cadence: "every 15 minutes",
-      authenticationConfigured: cronSecret,
+      authenticationConfigured: true,
+      authentication: "GitHub Actions OIDC",
       endpoint: "/api/guardian"
     },
     integrations: {
