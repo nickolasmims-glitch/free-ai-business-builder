@@ -24,7 +24,7 @@ function containsForbiddenClaim(text) {
   return /guaranteed revenue|guaranteed income|we made \$|customer paid|customer purchased|sales closed|revenue generated/i.test(String(text || ""));
 }
 
-export async function guardianAuditCycle({ cycle, topic, goals, result }) {
+export async function guardianAuditCycle({ cycle, topic, goals, result, directCommand }) {
   "use step";
 
   const ai2Text = result?.ai2?.text || "";
@@ -47,6 +47,9 @@ export async function guardianAuditCycle({ cycle, topic, goals, result }) {
   return {
     guardian: "ONLINE",
     role: "Supervisor / reliability / policy guard",
+    enforcement: "NON_BLOCKING",
+    commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
+    directCommand: directCommand || null,
     cycle,
     topic,
     severity,
@@ -70,15 +73,20 @@ export async function guardianAuditCycle({ cycle, topic, goals, result }) {
   };
 }
 
-export async function guardianHeartbeat({ cycle, goals }) {
+export async function guardianHeartbeat({ cycle, goals, directCommand }) {
   "use step";
 
   return {
     guardian: "ONLINE",
     cycle,
+    enforcement: "NON_BLOCKING",
+    commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
+    directCommand: directCommand || null,
     goalsLocked: goalsLocked(goals),
     safeguards: [
       "owner-locked goals",
+      "owner direct commands take priority over Guardian recommendations",
+      "Guardian audits do not block mission execution",
       "no autonomous spending",
       "no fabricated revenue or customer claims",
       "external actions require approval",
