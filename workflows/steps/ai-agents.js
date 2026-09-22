@@ -212,6 +212,30 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
     .filter(x => x.status === "AI_ERROR" || x.status === "WAITING_FOR_AI_GATEWAY_KEY")
     .map(x => ({ status: x.status, errorClass: x.errorClass || "NOT_CONFIGURED", message: x.message || "" }));
 
+  const revenuePipeline = {
+    status: "READY_FOR_CUSTOMER_VALIDATION",
+    paymentPath: "customer -> hosted Stripe checkout -> Stripe balance -> owner bank payout",
+    moneyAuthority: "AI2_AI3_NONE",
+    checkout: "HOSTED_STRIPE_CHECKOUT",
+    offers: [
+      { name: "AI Lead Follow-Up Audit", priceUsd: 500, fulfillment: "audit + prioritized 30-day follow-up roadmap" },
+      { name: "30-Day Content Repurpose Pack", priceUsd: 300, fulfillment: "one source asset -> platform-ready derivatives" },
+      { name: "AI Workflow Quick-Win Sprint", priceUsd: 750, fulfillment: "one workflow mapped, improved and documented" }
+    ],
+    executionQueue: [
+      "research qualified buyer problems",
+      "create offer-specific fulfillment asset",
+      "prepare personalized outreach draft",
+      "obtain owner approval before external outreach",
+      "send customer to hosted checkout",
+      "verify paid Stripe session",
+      "fulfill the purchased offer",
+      "measure margin and repeatability"
+    ],
+    approvalGates: ["external outreach", "paid tools", "ads", "contracts", "financial actions"],
+    verificationGates: ["paid Stripe session", "refund status", "fulfilled deliverable", "verified revenue"]
+  };
+
   const result = {
     timestamp: new Date().toISOString(),
     cycle,
@@ -243,7 +267,8 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
     ai2,
     ai3,
     approvals,
-    modelFailures
+    modelFailures,
+    revenuePipeline
   };
 
   const notification = await notify("AI 2 + AI 3 multi-revenue research cycle " + cycle, result);
