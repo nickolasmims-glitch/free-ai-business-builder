@@ -74,7 +74,7 @@ export default async function handler(req, res) {
         "Guardian cannot pause, cancel, downgrade, or replace the active mission",
         "no autonomous spending",
         "no fabricated results",
-        "external actions approval-gated"
+        "legitimate zero-cost targeted outreach is standing owner-preapproved; financial and irreversible actions require explicit owner approval"
       ]
     });
   } catch (e) {
