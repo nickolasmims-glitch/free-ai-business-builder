@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/guardian",
-      "schedule": "0 * * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
