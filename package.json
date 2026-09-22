@@ -15,8 +15,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "lucide-react": "1.47.0",
-    "workflow": "4.8.9",
-    "jose": "6.1.0"
+    "workflow": "4.8.9"
   },
   "devDependencies": {}
 }
