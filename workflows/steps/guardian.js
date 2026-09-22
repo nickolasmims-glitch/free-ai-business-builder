@@ -94,7 +94,7 @@ export async function guardianAuditCycle({ cycle, topic, goals, result, directCo
     guardian: "ONLINE", role: "Supervisor / reliability / policy guard", enforcement: "POLICY_GATED",
     commandPriority: "OWNER_DIRECT_COMMANDS_FIRST", directCommand: directCommand || null, cycle, topic, severity, violations,
     goalsLocked: goalsLocked(goals), verifiedRevenue, revenuePacing,
-    externalActions: "OWNER_PREAPPROVED_FOR_LEGITIMATE_ZERO_COST_TARGETED_OUTREACH", spending: "BLOCKED_WITHOUT_OWNER_APPROVAL", moneyMovement: "BLOCKED",
+    externalActions: "STANDING_OWNER_PREAPPROVED_FOR_LEGITIMATE_ZERO_COST_TARGETED_OUTREACH", spending: "BLOCKED_WITHOUT_OWNER_APPROVAL", moneyMovement: "BLOCKED",
     fabricatedResults: "BLOCKED",
     revenueScout: {
       status: result?.researchCount ? "EVIDENCE_CAPTURED" : "NO_RESEARCH_EVIDENCE",
@@ -115,7 +115,7 @@ export async function guardianHeartbeat({ cycle, goals, directCommand, verifiedR
     safeguards: [
       "owner-locked goals", "Guardian blocks goal/policy drift before AI2/AI3 execution",
       "verified Stripe revenue used for pacing only", "AI2/AI3 have no money-movement authority",
-      "no autonomous spending", "no fabricated revenue or customer claims", "legitimate zero-cost targeted outreach is owner-preapproved", "financial and irreversible actions still require approval", "AI2/AI3 failures are surfaced"
+      "no autonomous spending", "no fabricated revenue or customer claims", "legitimate zero-cost targeted outreach is standing owner-preapproved", "financial and irreversible actions still require explicit owner approval", "AI2/AI3 failures are surfaced"
     ],
     heartbeat: new Date().toISOString()
   };
