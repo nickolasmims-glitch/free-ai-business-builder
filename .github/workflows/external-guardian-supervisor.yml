@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      - name: Allow the matching Vercel production deployment to become ready
+        run: sleep 90
+
       - name: Trigger Guardian outside Vercel Cron
         env:
           GUARDIAN_URL: https://free-ai-business-builder.vercel.app/api/guardian
