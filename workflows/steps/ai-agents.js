@@ -18,7 +18,7 @@ async function webResearch(query) {
     if (!r.ok) throw new Error("Research provider returned " + r.status);
     const html = await r.text();
     const out = [];
-    const re = /<a[^>]+class="result__a"[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<a[^>]+class="result__snippet"[^>]*>([\\s\\S]*?)<\\/a>/gi;
+    const re = /<a[^>]+class="result__a"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
     let m;
     while ((m = re.exec(html)) && out.length < 8) {
       out.push({ title: cleanText(m[1]), snippet: cleanText(m[2]) });
