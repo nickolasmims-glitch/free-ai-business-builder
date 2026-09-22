@@ -49,9 +49,9 @@ async function askAgent(agent, prompt) {
     };
   }
 
-  const model = process.env.AI_AGENT_MODEL || "openai/gpt-5.6-sol";
+  const model = process.env.AI_AGENT_MODEL || (agent.startsWith("AI 2") ? "openai/gpt-5.6-sol" : "openai/gpt-5.6-terra");
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90000);
+  const timeout = setTimeout(() => controller.abort(), 60000);
 
   try {
     const r = await fetch("https://ai-gateway.vercel.sh/v1/responses", {
@@ -62,6 +62,7 @@ async function askAgent(agent, prompt) {
       },
       body: JSON.stringify({
         model,
+        reasoning: { effort: agent.startsWith("AI 2") ? "high" : "medium" },
         input: [
           {
             type: "message",
@@ -112,7 +113,7 @@ async function askAgent(agent, prompt) {
     return { status: "AI_COMPLETE", model, text: text.slice(0, 16000) };
   } catch (e) {
     if (e?.name === "AbortError") {
-      return { status: "AI_ERROR", errorClass: "RETRYABLE_TIMEOUT", model, message: "AI Gateway request timed out after 90 seconds." };
+      return { status: "AI_ERROR", errorClass: "RETRYABLE_TIMEOUT", model, message: "AI Gateway request timed out after 60 seconds." };
     }
     return { status: "AI_ERROR", errorClass: "NETWORK_ERROR", model, message: String(e?.message || "AI Gateway network error").slice(0, 1000) };
   } finally {
