@@ -2,7 +2,7 @@ name: External AI2 AI3 Guardian Supervisor
 
 on:
   schedule:
-    - cron: "7,37 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
