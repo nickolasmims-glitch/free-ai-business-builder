@@ -76,7 +76,7 @@ export async function guardianRevenueScoutMonitor(input = {}) {
       "AI2/AI3 receive no payment or money-movement tools",
       "no autonomous spending",
       "no fabricated results",
-      "external actions approval-gated",
+      "legitimate zero-cost targeted outreach is standing owner-preapproved; financial and irreversible actions require explicit owner approval",
       "execution proposals are separated from verified results"
     ],
     results: cycles,
