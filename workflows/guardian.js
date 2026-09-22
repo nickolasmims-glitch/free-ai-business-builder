@@ -1,6 +1,6 @@
 import { sleep } from "workflow";
 import { runAgentCycle } from "./steps/ai-agents.js";
-import { guardianAuditCycle, guardianHeartbeat } from "./steps/guardian.js";
+import { guardianAuditCycle, guardianHeartbeat, getVerifiedStripeRevenue } from "./steps/guardian.js";
 
 const GOALS = {
   fridayTarget: 1000,
@@ -21,20 +21,23 @@ export async function guardianRevenueScoutMonitor(input = {}) {
   const startedAt = new Date().toISOString();
 
   for (let cycle = 1; cycle <= 4; cycle++) {
-    const heartbeat = await guardianHeartbeat({ cycle, goals: GOALS, directCommand });
+    const verifiedRevenue = await getVerifiedStripeRevenue();
+    const heartbeat = await guardianHeartbeat({ cycle, goals: GOALS, directCommand, verifiedRevenue });
     // Guardian is supervisory only. It observes and reports; it never gates the mission.
-    const ai = await runAgentCycle({ topic, cycle, goals: GOALS, directCommand });
+    const ai = await runAgentCycle({ topic, cycle, goals: GOALS, directCommand, verifiedRevenue });
     const audit = await guardianAuditCycle({
       cycle,
       topic,
       goals: GOALS,
       result: ai,
-      directCommand
+      directCommand,
+      verifiedRevenue
     });
 
     const snapshot = {
       cycle,
       heartbeat,
+      verifiedRevenue,
       ai2: ai.ai2?.status || "MISSING",
       ai3: ai.ai3?.status || "MISSING",
       guardian: audit,
@@ -52,6 +55,8 @@ export async function guardianRevenueScoutMonitor(input = {}) {
       goalsLocked: audit.goalsLocked,
       ai2: snapshot.ai2,
       ai3: snapshot.ai3,
+      verifiedRevenueUsd: verifiedRevenue.verifiedRevenueUsd,
+      revenuePacing: audit.revenuePacing,
       violations: audit.violations,
       approvals: audit.approvals.length
     }));
@@ -75,6 +80,8 @@ export async function guardianRevenueScoutMonitor(input = {}) {
     cycles: cycles.length,
     criticalCycles: critical,
     highCycles: high,
+    latestVerifiedRevenue: cycles.at(-1)?.verifiedRevenue || null,
+    latestRevenuePacing: cycles.at(-1)?.guardian?.revenuePacing || null,
     revenueScout: "ACTIVE",
     safeguards: [
       "owner-locked goals",
