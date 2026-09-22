@@ -5,6 +5,71 @@ function json(res, status, payload) {
   res.status(status).json(payload);
 }
 
+let jwksCache = null;
+let jwksCacheExpiresAt = 0;
+
+function base64urlToBytes(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function decodeJsonPart(value) {
+  return JSON.parse(new TextDecoder().decode(base64urlToBytes(value)));
+}
+
+async function getGitHubJwks() {
+  const now = Date.now();
+  if (jwksCache && jwksCacheExpiresAt > now) return jwksCache;
+
+  const response = await fetch("https://token.actions.githubusercontent.com/.well-known/jwks");
+  if (!response.ok) throw new Error(`GitHub OIDC JWKS request failed: ${response.status}`);
+  const body = await response.json();
+  if (!Array.isArray(body.keys)) throw new Error("GitHub OIDC JWKS response is invalid");
+
+  jwksCache = body.keys;
+  jwksCacheExpiresAt = now + 10 * 60 * 1000;
+  return jwksCache;
+}
+
+async function verifyGitHubOidc(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+
+  const header = decodeJsonPart(parts[0]);
+  const payload = decodeJsonPart(parts[1]);
+
+  if (header.alg !== "RS256" || !header.kid) return false;
+  if (payload.iss !== "https://token.actions.githubusercontent.com") return false;
+  if (payload.aud !== "free-ai-business-builder-guardian") return false;
+  if (payload.repository !== "nickolasmims-glitch/free-ai-business-builder") return false;
+  if (payload.ref !== "refs/heads/main") return false;
+  if (!payload.exp || payload.exp * 1000 <= Date.now()) return false;
+
+  const keys = await getGitHubJwks();
+  const jwk = keys.find((key) => key.kid === header.kid && key.kty === "RSA");
+  if (!jwk) return false;
+
+  const publicKey = await crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+
+  const data = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
+  const signature = base64urlToBytes(parts[2]);
+
+  return crypto.subtle.verify(
+    "RSASSA-PKCS1-v1_5",
+    publicKey,
+    signature,
+    data
+  );
+}
+
 async function authorized(req) {
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers.authorization === "Bearer " + secret) return true;
@@ -13,19 +78,7 @@ async function authorized(req) {
   if (!auth.startsWith("Bearer ")) return false;
 
   try {
-    const { createRemoteJWKSet, jwtVerify } = await import("jose");
-    const token = auth.slice(7);
-    const JWKS = createRemoteJWKSet(
-      new URL("https://token.actions.githubusercontent.com/.well-known/jwks")
-    );
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: "https://token.actions.githubusercontent.com",
-      audience: "free-ai-business-builder-guardian"
-    });
-    return (
-      payload.repository === "nickolasmims-glitch/free-ai-business-builder" &&
-      payload.ref === "refs/heads/main"
-    );
+    return await verifyGitHubOidc(auth.slice(7));
   } catch (error) {
     console.error("github_oidc_authorization_failed", error?.message || error);
     return false;
