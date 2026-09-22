@@ -18,7 +18,10 @@ export async function guardianRevenueScoutMonitor(input = {}) {
   const experimentLedger = [];
   const startedAt = new Date().toISOString();
 
-  for (let cycle = 1; cycle <= 4; cycle++) {
+  // One focused cycle per invocation. The external supervisor triggers this
+  // workflow repeatedly, avoiding overlapping 24-hour durable runs while
+  // keeping AI2/AI3 continuously active.
+  const cycle = Number(input.cycle || 1);
     const verifiedRevenue = await getVerifiedStripeRevenue();
     const heartbeat = await guardianHeartbeat({ cycle, goals: GOALS, directCommand, verifiedRevenue });
     const gate = await guardianGate({ cycle, goals: GOALS, directCommand });
@@ -26,30 +29,28 @@ export async function guardianRevenueScoutMonitor(input = {}) {
     if (!gate.allowed) {
       cycles.push({ cycle, heartbeat, verifiedRevenue, ai2: "BLOCKED_BY_GUARDIAN", ai3: "BLOCKED_BY_GUARDIAN", guardian: gate, timestamp: new Date().toISOString() });
       console.log("[GUARDIAN]", JSON.stringify({ event: "guardian_gate_blocked", cycle, reason: gate.reason }));
-      if (cycle < 4) await sleep("6 hours");
-      continue;
+    } else {
+      const ai = await runAgentCycle({ topic, cycle, goals: GOALS, directCommand, verifiedRevenue });
+      const audit = await guardianAuditCycle({ cycle, topic, goals: GOALS, result: ai, directCommand, verifiedRevenue });
+      const snapshot = { cycle, heartbeat, verifiedRevenue, ai2: ai.ai2?.status || "MISSING", ai3: ai.ai3?.status || "MISSING", revenuePipeline: ai.revenuePipeline || null, guardian: audit, timestamp: new Date().toISOString() };
+      cycles.push(snapshot);
+
+      console.log("[GUARDIAN]", JSON.stringify({
+        event: "guardian_cycle",
+        cycle,
+        enforcement: "POLICY_GATED",
+        commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
+        severity: audit.severity,
+        goalsLocked: audit.goalsLocked,
+        ai2: snapshot.ai2,
+        ai3: snapshot.ai3,
+        verifiedRevenueUsd: verifiedRevenue.verifiedRevenueUsd,
+        revenuePacing: audit.revenuePacing,
+        violations: audit.violations,
+        approvals: audit.approvals.length
+      }));
     }
 
-    const ai = await runAgentCycle({ topic, cycle, goals: GOALS, directCommand, verifiedRevenue });
-    const audit = await guardianAuditCycle({ cycle, topic, goals: GOALS, result: ai, directCommand, verifiedRevenue });
-    const snapshot = { cycle, heartbeat, verifiedRevenue, ai2: ai.ai2?.status || "MISSING", ai3: ai.ai3?.status || "MISSING", revenuePipeline: ai.revenuePipeline || null, guardian: audit, timestamp: new Date().toISOString() };
-    cycles.push(snapshot);
-
-    console.log("[GUARDIAN]", JSON.stringify({
-      event: "guardian_cycle",
-      cycle,
-      enforcement: "POLICY_GATED",
-      commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
-      severity: audit.severity,
-      goalsLocked: audit.goalsLocked,
-      ai2: snapshot.ai2,
-      ai3: snapshot.ai3,
-      verifiedRevenueUsd: verifiedRevenue.verifiedRevenueUsd,
-      revenuePacing: audit.revenuePacing,
-      violations: audit.violations,
-      approvals: audit.approvals.length
-    }));
-    if (cycle < 4) await sleep("6 hours");
   }
 
   const critical = cycles.filter(x => x.guardian.severity === "CRITICAL").length;
