@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: external-ai2-ai3-guardian
@@ -20,19 +21,24 @@ jobs:
       - name: Trigger Guardian outside Vercel Cron
         env:
           GUARDIAN_URL: https://free-ai-business-builder.vercel.app/api/guardian
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${CRON_SECRET:-}" ]; then
-            echo "CRON_SECRET is not configured in GitHub Actions."
-            echo "External supervisor is installed but cannot authenticate to Guardian yet."
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --max-time 20 \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=free-ai-business-builder-guardian")"
+          OIDC_TOKEN="$(printf '%s' "$oidc_response" | jq -r '.value')"
+          if [ -z "$OIDC_TOKEN" ] || [ "$OIDC_TOKEN" = "null" ]; then
+            echo "GitHub OIDC token was not issued."
             exit 1
           fi
 
           response="$(curl --fail-with-body --silent --show-error \
             --max-time 60 \
             -X POST "$GUARDIAN_URL" \
-            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
             -H "Content-Type: application/json" \
             --data '{"topic":"AI2 AI3 autonomous revenue mission","command":"Continue the revenue mission. Research, evaluate, and execute every legitimate zero-cost internal step available. Do not spend, transfer, withdraw, invest, purchase, refund, or make financial commitments. Use the standing authorization for legitimate targeted zero-cost outreach only where a compliant delivery channel and verified business basis exist. Record verified progress and blockers."}')"
 
