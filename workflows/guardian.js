@@ -1,6 +1,6 @@
 import { sleep } from "workflow";
 import { runAgentCycle } from "./steps/ai-agents.js";
-import { guardianAuditCycle, guardianHeartbeat, getVerifiedStripeRevenue } from "./steps/guardian.js";
+import { guardianAuditCycle, guardianHeartbeat, guardianGate, getVerifiedStripeRevenue } from "./steps/guardian.js";
 
 const GOALS = {
   fridayTarget: 1000,
@@ -11,45 +11,32 @@ const GOALS = {
 
 export async function guardianRevenueScoutMonitor(input = {}) {
   "use workflow";
-
-  const topic = String(
-    input.topic || "AI workflow automation for local service businesses"
-  ).slice(0, 180);
+  const topic = String(input.topic || "AI workflow automation for local service businesses").slice(0, 180);
   const directCommand = String(input.directCommand || "").slice(0, 2000);
-
   const cycles = [];
   const startedAt = new Date().toISOString();
 
   for (let cycle = 1; cycle <= 4; cycle++) {
     const verifiedRevenue = await getVerifiedStripeRevenue();
     const heartbeat = await guardianHeartbeat({ cycle, goals: GOALS, directCommand, verifiedRevenue });
-    // Guardian is supervisory only. It observes and reports; it never gates the mission.
+    const gate = await guardianGate({ cycle, goals: GOALS, directCommand });
+
+    if (!gate.allowed) {
+      cycles.push({ cycle, heartbeat, verifiedRevenue, ai2: "BLOCKED_BY_GUARDIAN", ai3: "BLOCKED_BY_GUARDIAN", guardian: gate, timestamp: new Date().toISOString() });
+      console.log("[GUARDIAN]", JSON.stringify({ event: "guardian_gate_blocked", cycle, reason: gate.reason }));
+      if (cycle < 4) await sleep("6 hours");
+      continue;
+    }
+
     const ai = await runAgentCycle({ topic, cycle, goals: GOALS, directCommand, verifiedRevenue });
-    const audit = await guardianAuditCycle({
-      cycle,
-      topic,
-      goals: GOALS,
-      result: ai,
-      directCommand,
-      verifiedRevenue
-    });
-
-    const snapshot = {
-      cycle,
-      heartbeat,
-      verifiedRevenue,
-      ai2: ai.ai2?.status || "MISSING",
-      ai3: ai.ai3?.status || "MISSING",
-      guardian: audit,
-      timestamp: new Date().toISOString()
-    };
-
+    const audit = await guardianAuditCycle({ cycle, topic, goals: GOALS, result: ai, directCommand, verifiedRevenue });
+    const snapshot = { cycle, heartbeat, verifiedRevenue, ai2: ai.ai2?.status || "MISSING", ai3: ai.ai3?.status || "MISSING", guardian: audit, timestamp: new Date().toISOString() };
     cycles.push(snapshot);
 
     console.log("[GUARDIAN]", JSON.stringify({
       event: "guardian_cycle",
       cycle,
-      enforcement: "NON_BLOCKING",
+      enforcement: "POLICY_GATED",
       commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
       severity: audit.severity,
       goalsLocked: audit.goalsLocked,
@@ -60,17 +47,15 @@ export async function guardianRevenueScoutMonitor(input = {}) {
       violations: audit.violations,
       approvals: audit.approvals.length
     }));
-
     if (cycle < 4) await sleep("6 hours");
   }
 
   const critical = cycles.filter(x => x.guardian.severity === "CRITICAL").length;
   const high = cycles.filter(x => x.guardian.severity === "HIGH").length;
-
   return {
     status: critical ? "GUARDIAN_CRITICAL_REVIEW_REQUIRED" : high ? "GUARDIAN_HIGH_REVIEW_REQUIRED" : "GUARDIAN_24H_MONITOR_COMPLETE",
     guardian: "ONLINE",
-    enforcement: "NON_BLOCKING",
+    enforcement: "POLICY_GATED",
     commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
     startedAt,
     completedAt: new Date().toISOString(),
@@ -85,11 +70,12 @@ export async function guardianRevenueScoutMonitor(input = {}) {
     revenueScout: "ACTIVE",
     safeguards: [
       "owner-locked goals",
-      "owner direct commands take priority over Guardian recommendations",
-      "Guardian cannot pause, cancel, downgrade, or replace the active mission",
+      "Guardian blocks execution on goal/policy drift",
+      "AI2/AI3 receive no payment or money-movement tools",
       "no autonomous spending",
       "no fabricated results",
-      "external actions approval-gated"
+      "external actions approval-gated",
+      "execution proposals are separated from verified results"
     ],
     results: cycles
   };
