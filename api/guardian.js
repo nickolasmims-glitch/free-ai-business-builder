@@ -5,9 +5,31 @@ function json(res, status, payload) {
   res.status(status).json(payload);
 }
 
-function authorized(req) {
+async function authorized(req) {
   const secret = process.env.CRON_SECRET;
-  return Boolean(secret && req.headers.authorization === "Bearer " + secret);
+  if (secret && req.headers.authorization === "Bearer " + secret) return true;
+
+  const auth = req.headers.authorization || "";
+  if (!auth.startsWith("Bearer ")) return false;
+
+  try {
+    const { createRemoteJWKSet, jwtVerify } = await import("jose");
+    const token = auth.slice(7);
+    const JWKS = createRemoteJWKSet(
+      new URL("https://token.actions.githubusercontent.com/.well-known/jwks")
+    );
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: "https://token.actions.githubusercontent.com",
+      audience: "free-ai-business-builder-guardian"
+    });
+    return (
+      payload.repository === "nickolasmims-glitch/free-ai-business-builder" &&
+      payload.ref === "refs/heads/main"
+    );
+  } catch (error) {
+    console.error("github_oidc_authorization_failed", error?.message || error);
+    return false;
+  }
 }
 
 export default async function handler(req, res) {
@@ -25,7 +47,7 @@ export default async function handler(req, res) {
     )
   };
 
-  if (!authorized(req)) {
+  if (!(await authorized(req))) {
     return json(res, 401, {
       error: "Unauthorized Guardian request",
       configured
