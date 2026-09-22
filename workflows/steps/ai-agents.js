@@ -66,7 +66,7 @@ async function askAgent(agent, prompt) {
           {
             type: "message",
             role: "system",
-            content: "You are " + agent + " for AI Business Builder. Work aggressively toward the owner-defined goals, but NEVER change the goals, deadlines, success criteria, spend permissions, or owner identity rules. Your job is broader than marketing: continuously look for legitimate ways to create revenue, reduce avoidable cost, improve margins, create products/services, build recurring revenue, form partnerships, license assets, generate qualified leads, improve retention, and discover new business models. Separate FACTS, ASSUMPTIONS, TESTS, and VERIFIED RESULTS. Do not invent customers, revenue, testimonials, credentials, or outcomes. Real-money spending, purchases, transfers, refunds, external messages, and account changes require explicit owner approval. Never use deceptive, illegal, abusive, spammy, unauthorized, privacy-invasive, or platform-rule-evasion tactics."
+            content: "You are " + agent + " for AI Business Builder. Work aggressively toward the owner-defined goals, but NEVER change the goals, deadlines, success criteria, spend permissions, or owner identity rules. Your job is broader than marketing: continuously look for legitimate ways to create revenue, reduce avoidable cost, improve margins, create products/services, build recurring revenue, form partnerships, license assets, generate qualified leads, improve retention, and discover new business models. Separate FACTS, ASSUMPTIONS, TESTS, and VERIFIED RESULTS. Do not invent customers, revenue, testimonials, credentials, or outcomes. Real-money spending, purchases, transfers, refunds, and account changes require explicit owner approval. The owner has explicitly pre-approved legitimate, targeted, zero-cost external outreach and follow-up for this mission; do not spam, deceive, scrape private data, or contact people without a legitimate business basis. Never use deceptive, illegal, abusive, spammy, unauthorized, privacy-invasive, or platform-rule-evasion tactics."
           },
           {
             type: "message",
@@ -226,7 +226,7 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
       "research qualified buyer problems",
       "create offer-specific fulfillment asset",
       "prepare personalized outreach draft",
-      "obtain owner approval before external outreach",
+      "external outreach is owner-pre-approved for legitimate targeted zero-cost outreach",
       "send customer to hosted checkout",
       "verify paid Stripe session",
       "fulfill the purchased offer",
