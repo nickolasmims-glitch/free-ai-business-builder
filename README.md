@@ -19,6 +19,8 @@ Production build verified after the latest source repair. This marker exists to 
 ## Status
 Phase 1 foundation.
 
-
 ## Production rebuild
 Cloud AI2/AI3 operations are surfaced in the app and the supervisor is designed to run independently of the owner's browser.
+
+## Redeploy
+Verified Guardian/OIDC repair is on main. Fresh production deployment requested so the live app serves the repaired cloud supervisor.
