@@ -2,8 +2,8 @@ name: External AI2 AI3 Guardian Supervisor
 
 on:
   push:
-    paths:
-      - ".github/workflows/external-guardian-supervisor.yml"
+    branches:
+      - main
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
