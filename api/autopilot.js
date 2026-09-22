@@ -1,5 +1,5 @@
 import { start } from "workflow/api";
-import { ai2Ai3ContinuousMonitor } from "../workflows/ai2-ai3.js";
+import { guardianRevenueScoutMonitor } from "../workflows/guardian.js";
 
 function json(res,status,payload){res.status(status).json(payload)}
 function authorized(req){const secret=process.env.CRON_SECRET;return Boolean(secret&&req.headers.authorization==="Bearer "+secret)}
@@ -16,9 +16,9 @@ export default async function handler(req,res){
 
   const topic=String(req.query?.topic||process.env.AUTOPILOT_TOPIC||"AI workflow automation for local service businesses").slice(0,180);
   try{
-    const run=await start(ai2Ai3ContinuousMonitor,[{topic}]);
+    const run=await start(guardianRevenueScoutMonitor,[{topic}]);
     console.log(JSON.stringify({
-      event:"ai2_ai3_24h_monitor_started",
+      event:"guardian_revenue_scout_started",
       runId:run.runId,
       topic,
       goals:{fridayTarget:1000,fridayDeadline:"2026-09-25",fourMonthTarget:4000000,fourMonthDeadline:"2027-01-25"},
@@ -26,12 +26,12 @@ export default async function handler(req,res){
     }));
     return json(res,200,{
       ok:true,
-      status:"AI2_AI3_MONITOR_STARTED",
+      status:"GUARDIAN_REVENUE_SCOUT_STARTED",
       runId:run.runId,
       topic,
       configured,
-      monitor:"4 durable cycles, approximately every 6 hours; browser can be closed.",
-      safeguards:["owner-locked goals","no autonomous spending","no fabricated results","external actions approval-gated"]
+      monitor:"Guardian-supervised 4 durable cycles, approximately every 6 hours; browser can be closed.",
+      safeguards:["Guardian supervisor","owner-locked goals","no autonomous spending","no fabricated results","external actions approval-gated"]
     });
   }catch(e){
     console.error("ai2_ai3_monitor_start_error",e);
