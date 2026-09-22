@@ -14,6 +14,8 @@ export async function guardianRevenueScoutMonitor(input = {}) {
   const topic = String(input.topic || "AI workflow automation for local service businesses").slice(0, 180);
   const directCommand = String(input.directCommand || "").slice(0, 2000);
   const cycles = [];
+  const opportunityLedger = [];
+  const experimentLedger = [];
   const startedAt = new Date().toISOString();
 
   for (let cycle = 1; cycle <= 4; cycle++) {
@@ -30,7 +32,7 @@ export async function guardianRevenueScoutMonitor(input = {}) {
 
     const ai = await runAgentCycle({ topic, cycle, goals: GOALS, directCommand, verifiedRevenue });
     const audit = await guardianAuditCycle({ cycle, topic, goals: GOALS, result: ai, directCommand, verifiedRevenue });
-    const snapshot = { cycle, heartbeat, verifiedRevenue, ai2: ai.ai2?.status || "MISSING", ai3: ai.ai3?.status || "MISSING", guardian: audit, timestamp: new Date().toISOString() };
+    const snapshot = { cycle, heartbeat, verifiedRevenue, ai2: ai.ai2?.status || "MISSING", ai3: ai.ai3?.status || "MISSING", revenuePipeline: ai.revenuePipeline || null, guardian: audit, timestamp: new Date().toISOString() };
     cycles.push(snapshot);
 
     console.log("[GUARDIAN]", JSON.stringify({
@@ -77,6 +79,9 @@ export async function guardianRevenueScoutMonitor(input = {}) {
       "external actions approval-gated",
       "execution proposals are separated from verified results"
     ],
-    results: cycles
+    results: cycles,
+    opportunityLedger,
+    experimentLedger,
+    revenuePipeline: cycles.at(-1)?.revenuePipeline || null
   };
 }
