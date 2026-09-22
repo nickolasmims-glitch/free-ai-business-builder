@@ -138,6 +138,18 @@ RETURN EXACT SECTIONS: MISSION MATH; BEST TESTABLE OFFERS; LANE 1; LANE 2; LANE 
   logActivity("AI 3 Mission","Launch board initialized with three test offers and a first execution checkpoint");
 };
 
+ useEffect(()=>{
+  if(offers.length===0){
+    setOffers([
+      {id:Date.now(),name:"AI Lead Follow-Up Audit",price:"500",status:"Test",leads:"0",proposals:"0",sales:"0"},
+      {id:Date.now()+1,name:"30-Day Content Repurpose Pack",price:"300",status:"Test",leads:"0",proposals:"0",sales:"0"},
+      {id:Date.now()+2,name:"AI Workflow Quick-Win Sprint",price:"750",status:"Test",leads:"0",proposals:"0",sales:"0"}
+    ]);
+    setScorecard(v=>({...v,nextAction:v.nextAction||"Research qualified prospects and prepare approval-gated outreach drafts"}));
+    logActivity("AI 3 Mission","Auto-initialized zero-spend revenue offer board","Ready");
+  }
+ },[]);
+
 return <main><header><div className="brand"><Brain size={28}/><span>AI Business Builder</span></div><div className="pill">{anonymousMode?"ANONYMOUS AI · LOCAL AI":"FREE MODE · LOCAL AI"}</div></header>
  {active?<section className="modulePage"><button className="secondary back" onClick={()=>setActive(null)}><ArrowLeft size={17}/> Back to dashboard</button><div className="moduleIcon">{React.createElement(active.icon,{size:30})}</div><div className="eyebrow">AI MODULE</div><h1>{active.title}</h1><p className="moduleDetail">{active.detail}</p>
  {active.title==="Content Factory"?<div className="moduleCard"><h2>Content Factory</h2><p>One topic becomes a complete original content package.</p><div className="inputRow"><input value={topic} onChange={e=>setTopic(e.target.value)} onKeyDown={e=>e.key==="Enter"&&generateFactory()} placeholder="Enter your topic or niche…"/><button onClick={generateFactory}><Sparkles size={18}/> Build Package</button></div>{factory&&<div className="factorySteps"><span>01 Research</span><span>02 Hook</span><span>03 Outline</span><span>04 Shorts</span><span>05 Monetization</span><span>06 Compliance</span></div>}{aiBox}{output}</div>
