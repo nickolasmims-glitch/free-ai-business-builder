@@ -1,4 +1,3 @@
-import { sleep } from "workflow";
 import { runAgentCycle } from "./steps/ai-agents.js";
 import { guardianAuditCycle, guardianHeartbeat, guardianGate, getVerifiedStripeRevenue } from "./steps/guardian.js";
 
@@ -51,12 +50,11 @@ export async function guardianRevenueScoutMonitor(input = {}) {
       }));
     }
 
-  }
 
   const critical = cycles.filter(x => x.guardian.severity === "CRITICAL").length;
   const high = cycles.filter(x => x.guardian.severity === "HIGH").length;
   return {
-    status: critical ? "GUARDIAN_CRITICAL_REVIEW_REQUIRED" : high ? "GUARDIAN_HIGH_REVIEW_REQUIRED" : "GUARDIAN_24H_MONITOR_COMPLETE",
+    status: critical ? "GUARDIAN_CRITICAL_REVIEW_REQUIRED" : high ? "GUARDIAN_HIGH_REVIEW_REQUIRED" : "GUARDIAN_CYCLE_COMPLETE",
     guardian: "ONLINE",
     enforcement: "POLICY_GATED",
     commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
