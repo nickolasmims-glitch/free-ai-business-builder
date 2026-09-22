@@ -37,14 +37,18 @@ export default async function handler(req, res) {
     process.env.AUTOPILOT_TOPIC ||
     "AI workflow automation for local service businesses"
   ).slice(0, 180);
+  const directCommand = String(req.query?.command || req.body?.command || "").slice(0, 2000);
 
   try {
-    const run = await start(guardianRevenueScoutMonitor, [{ topic }]);
+    const run = await start(guardianRevenueScoutMonitor, [{ topic, directCommand }]);
 
     console.log(JSON.stringify({
       event: "guardian_revenue_scout_started",
       runId: run.runId,
       topic,
+      directCommand: directCommand || null,
+      enforcement: "NON_BLOCKING",
+      commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
       configured,
       goals: {
         fridayTarget: 1000,
@@ -59,10 +63,15 @@ export default async function handler(req, res) {
       status: "GUARDIAN_REVENUE_SCOUT_STARTED",
       runId: run.runId,
       topic,
+      directCommand: directCommand || null,
       configured,
+      enforcement: "NON_BLOCKING",
+      commandPriority: "OWNER_DIRECT_COMMANDS_FIRST",
       monitor: "4 durable cycles approximately every 6 hours; browser can be closed.",
       safeguards: [
         "owner-locked goals",
+        "owner direct commands take priority over Guardian recommendations",
+        "Guardian cannot pause, cancel, downgrade, or replace the active mission",
         "no autonomous spending",
         "no fabricated results",
         "external actions approval-gated"
