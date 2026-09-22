@@ -232,7 +232,10 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
       "fulfill the purchased offer",
       "measure margin and repeatability"
     ],
-    approvalGates: ["external outreach", "paid tools", "ads", "contracts", "financial actions"],
+    standingPreapprovedActions: [
+      "legitimate targeted zero-cost business-development outreach through a configured compliant channel with a verified business basis"
+    ],
+    approvalGates: ["paid tools", "ads", "contracts", "financial actions"],
     verificationGates: ["paid Stripe session", "refund status", "fulfilled deliverable", "verified revenue"]
   };
 
