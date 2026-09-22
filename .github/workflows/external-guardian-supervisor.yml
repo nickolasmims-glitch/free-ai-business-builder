@@ -21,8 +21,6 @@ jobs:
       - name: Trigger Guardian outside Vercel Cron
         env:
           GUARDIAN_URL: https://free-ai-business-builder.vercel.app/api/guardian
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           set -euo pipefail
           oidc_response="$(curl --fail-with-body --silent --show-error \
