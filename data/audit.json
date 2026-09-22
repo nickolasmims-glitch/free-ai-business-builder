@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Business module: Research Brain",
+    "status": "PASS",
+    "evidence": "Present.",
+    "nextAction": "undefined"
+  },
+  {
+    "name": "Business module: Content Factory",
+    "status": "PASS",
+    "evidence": "Present.",
+    "nextAction": "undefined"
+  },
+  {
+    "name": "Revenue tracking",
+    "status": "PASS",
+    "evidence": "Expected capability markers are present.",
+    "nextAction": "Review the production implementation and add the missing capability if required."
+  },
+  {
+    "name": "Compliance preflight",
+    "status": "PASS",
+    "evidence": "Expected capability markers are present.",
+    "nextAction": "Review the production implementation and add the missing capability if required."
+  }
+]
