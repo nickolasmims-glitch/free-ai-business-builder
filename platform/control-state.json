@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "ownerAuthority": "OWNER",
+  "hostingAuthority": "OWNER",
+  "businessDecisionAuthority": "OWNER",
+  "browserRequiredForWorkers": false,
+  "autonomousSpending": false,
+  "financialActionsRequireOwnerApproval": true,
+  "fabricatedResultsForbidden": true,
+  "workers": {
+    "ai2": { "required": true, "role": "opportunity-research-and-business-development" },
+    "ai3": { "required": true, "role": "revenue-operations-and-monetization" }
+  },
+  "providers": {
+    "github": { "role": "source-control" },
+    "vercel": { "role": "optional-ui-hosting" },
+    "stripe": { "role": "payment-processing-and-verification" },
+    "aiGateway": { "role": "model-routing" }
+  }
+}
