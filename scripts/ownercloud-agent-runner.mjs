@@ -77,9 +77,15 @@ try {
   });
 
   if (result.ai2?.status !== "AI_COMPLETE" || result.ai3?.status !== "AI_COMPLETE") {
+    console.error("[OwnerCloud] AI2/AI3 execution failure details:", JSON.stringify({
+      ai2: { status: result.ai2?.status, errorClass: result.ai2?.errorClass, httpStatus: result.ai2?.httpStatus, model: result.ai2?.model, message: result.ai2?.message },
+      ai3: { status: result.ai3?.status, errorClass: result.ai3?.errorClass, httpStatus: result.ai3?.httpStatus, model: result.ai3?.model, message: result.ai3?.message }
+    }));
     throw new Error("REQUIRED_AI_WORKER_FAILED:" + JSON.stringify({
       ai2: result.ai2?.status,
-      ai3: result.ai3?.status
+      ai3: result.ai3?.status,
+      ai2ErrorClass: result.ai2?.errorClass,
+      ai3ErrorClass: result.ai3?.errorClass
     }));
   }
 
