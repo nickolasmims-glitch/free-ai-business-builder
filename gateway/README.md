@@ -45,3 +45,7 @@ The deployment pipeline builds both the customer gateway and AI2/AI3 worker imag
 
 ### Deployment credential preflight
 Before Google authentication, the deployment workflow checks that these GitHub Actions secrets are present: GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, and GCP_SERVICE_ACCOUNT. If any are missing, the run stops with the exact missing secret names instead of failing inside the Google auth action. Runtime application secrets GEMINI_API_KEY, DATABASE_URL, and OWNER_ACCESS_TOKEN are checked after authentication.
+
+
+### Deployment trigger marker
+This marker commit is used to trigger the validated Ground-Up Gateway CI path so the Google Cloud deployment workflow can run from the current branch head.
