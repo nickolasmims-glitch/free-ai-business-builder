@@ -1,4 +1,5 @@
 import { start } from "workflow/api";
+import { guardianRevenueScoutMonitor } from "../workflows/guardian.js";
 
 function json(res, status, payload) {
   res.status(status).json(payload);
@@ -114,8 +115,7 @@ export default async function handler(req, res) {
   const directCommand = String(req.query?.command || req.body?.command || "").slice(0, 2000);
 
   try {
-    const workflowId = "workflow//workflows/guardian.js//guardianRevenueScoutMonitor";
-    const run = await start(workflowId, [{ topic, directCommand }]);
+    const run = await start(guardianRevenueScoutMonitor, [{ topic, directCommand }]);
 
     console.log(JSON.stringify({
       event: "guardian_revenue_scout_started",
