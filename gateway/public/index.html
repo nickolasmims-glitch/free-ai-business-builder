@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Customer Gateway</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header><div><strong>Customer Gateway</strong><span>Owner control plane</span></div><button id="refresh">Refresh</button></header>
+<main>
+<section class="hero"><h1>One customer app. Full AI operations.</h1><p>Website builder, AI operations, bot management, alerts, and a visible audit trail.</p><div id="health"></div></section>
+<section class="grid">
+<article><h2>Website Builder</h2><input id="projectName" placeholder="Project name"><textarea id="instruction" placeholder="Tell the builder what to create or change"></textarea><button id="createProject">Create project</button><button id="generate">Generate site plan</button><pre id="builderOut"></pre></article>
+<article><h2>AI Planner</h2><textarea id="goal" placeholder="Business goal"></textarea><button id="plan">Plan with AI</button><button id="autoBot">Evaluate for a new bot</button><pre id="planOut"></pre></article>
+<article><h2>Bots</h2><div id="bots"></div><input id="botName" placeholder="Bot name"><input id="botRole" placeholder="Bot role"><button id="addBot">Add bot</button></article>
+<article><h2>Owner Alerts</h2><div id="alerts"></div></article>
+<article class="wide"><h2>Transparent Audit Trail</h2><div id="events"></div></article>
+</section>
+</main>
+<script src="/app.js"></script>
+</body></html>
