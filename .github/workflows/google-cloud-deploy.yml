@@ -20,6 +20,26 @@ jobs:
         with:
           ref: ${{ env.DEPLOY_SHA }}
 
+      - name: Preflight deployment credentials
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ secrets.GCP_REGION }}
+          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          missing=()
+          test -n "$GCP_PROJECT_ID" || missing+=(GCP_PROJECT_ID)
+          test -n "$GCP_REGION" || missing+=(GCP_REGION)
+          test -n "$GCP_WIF_PROVIDER" || missing+=(GCP_WIF_PROVIDER)
+          test -n "$GCP_SERVICE_ACCOUNT" || missing+=(GCP_SERVICE_ACCOUNT)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Deployment stopped before Google authentication because these GitHub Actions secrets are missing: ${missing[*]}"
+            echo "Add the missing secrets under GitHub Settings > Secrets and variables > Actions, then rerun this workflow."
+            exit 1
+          fi
+          echo "Deployment credential preflight passed."
+
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
