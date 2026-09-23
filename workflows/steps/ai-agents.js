@@ -1,3 +1,4 @@
+import { boxedPrompt } from "../../platform/ai-box-guard.mjs";
 const cleanText = (value) =>
   String(value || "")
     .replace(/<[^>]+>/g, " ")
@@ -196,13 +197,13 @@ export async function runAgentCycle({ topic, cycle, goals, directCommand, verifi
   const ai2 = await askAgent(
     "AI 2 — Opportunity Hunter & Business Development Engine",
     "Go beyond marketing. Map the full revenue surface area. Research and identify legitimate opportunities across: direct sales, recurring subscriptions, premium tiers, productized services, B2B contracts, white-label/licensing, partnerships/referrals, affiliate revenue, lead generation, digital products, templates/data/reports, integrations, marketplace/procurement opportunities, retention/reactivation, upsells/cross-sells, and cost/margin improvements. Rank opportunities by evidence, time-to-test, expected economics, dependencies, and risk WITHOUT giving an overall political-style or subjective winner. Produce a concrete opportunity backlog with tests and measurable success criteria. Do not spend money or contact anyone.",
-    directCommandInstruction + "\n\nEVIDENCE:\n" + context
+    boxedPrompt("AI 2", topic) + directCommandInstruction + "\n\nEVIDENCE:\n" + context
   );
 
   const ai3 = await askAgent(
     "AI 3 — Revenue Operations & Monetization Engine",
     "Turn the evidence and AI 2 findings into an execution queue that goes beyond marketing. For each opportunity, define the smallest legitimate test, required asset, metric, stop/continue rule, expected revenue path, margin implications, and owner approval requirement. Look specifically for non-marketing revenue: product/service creation, recurring billing, licensing, partnerships, referral economics, B2B packages, marketplace/procurement routes, customer retention, expansion revenue, and cost reductions. Do not purchase anything, move money, send external messages, or claim a result until it is verified. If evidence is weak, mark it as a hypothesis and research it further.",
-    directCommandInstruction + "\n\nEVIDENCE:\n" + context + "\n\nAI 2 FINDINGS:\n" + JSON.stringify(ai2)
+    boxedPrompt("AI 3", topic) + directCommandInstruction + "\n\nEVIDENCE:\n" + context + "\n\nAI 2 FINDINGS:\n" + JSON.stringify(ai2)
   );
 
   const approvals = [];
