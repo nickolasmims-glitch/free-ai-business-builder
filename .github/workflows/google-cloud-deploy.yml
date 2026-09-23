@@ -1,6 +1,8 @@
 name: Deploy Customer Gateway to Google Cloud
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   workflow_run:
     workflows: ["Ground-Up Gateway CI"]
