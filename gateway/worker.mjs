@@ -50,6 +50,8 @@ async function agentDecision(agent, facts) {
   return parseDecision(await gemini(prompt));
 }
 async function tick() {
+  const lock = await pool.query("SELECT pg_try_advisory_lock(81723651) AS locked");
+  if (!lock.rows[0]?.locked) return;
   const s = await state();
   addEvent(s,"worker_heartbeat","AI2/AI3","AI2 and AI3 worker cycle started");
   const facts = { bots:s.bots.filter(b=>b.status==="active").map(b=>b.name).join(",")||"none", projects:s.projects.map(p=>p.name).join(",")||"none" };
