@@ -3,8 +3,6 @@ kind: WorkerPool
 metadata:
   name: ai2-ai3-workers
   annotations:
-    run.googleapis.com/scalingMode: manual
-    run.googleapis.com/manualInstanceCount: "2"
 spec:
   template:
     spec:
