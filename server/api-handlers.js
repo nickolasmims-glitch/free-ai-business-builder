@@ -26,3 +26,26 @@ function verifyStripe(raw,sig,secret){if(!sig||!secret)return false;const p=sig.
 export async function stripeWebhook(req,res){if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});if(!process.env.STRIPE_SECRET_KEY||!process.env.STRIPE_WEBHOOK_SECRET)return res.status(503).json({error:"Stripe webhook is not configured"});try{const raw=await readRawBody(req);if(!verifyStripe(raw,req.headers["stripe-signature"],process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).json({error:"Invalid Stripe signature"});const event=JSON.parse(raw);return res.status(200).json({received:true,eventId:event.id,type:event.type})}catch(e){return res.status(500).json({error:e.message||"Webhook processing failed"})}}
 
 export function systemStatus(req,res){if(req.method!=="GET")return res.status(405).json({ok:false,error:"Method not allowed"});const aiGateway=Boolean(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN),stripe=Boolean(process.env.STRIPE_SECRET_KEY),email=Boolean(process.env.RESEND_API_KEY&&process.env.FROM_EMAIL&&process.env.AUTOPILOT_REPORT_EMAIL);return res.status(200).json({ok:true,platform:"Vercel",runtime:"cloud",browserRequiredForAgents:false,ai2:{status:aiGateway?"CONFIGURED":"WAITING_FOR_AI_GATEWAY_KEY",model:process.env.AI2_MODEL||"openai/gpt-5.6-sol"},ai3:{status:aiGateway?"CONFIGURED":"WAITING_FOR_AI_GATEWAY_KEY",model:process.env.AI3_MODEL||"openai/gpt-5.6-terra"},fallbackModel:"openai/gpt-5.6-luna",supervisor:{platform:"GitHub Actions",cadence:"every 15 minutes",authenticationConfigured:true,authentication:"GitHub Actions OIDC",endpoint:"/api/guardian"},integrations:{aiGateway,stripeVerification:stripe,emailReports:email},safeguards:{goalsOwnerLocked:true,autonomousSpending:false,financialActionsRequireOwnerApproval:true,fabricatedRevenueForbidden:true},deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null,checkedAt:new Date().toISOString()})}
+
+export async function businessMetrics(req,res){
+  if(req.method!=="GET") return res.status(405).json({error:"Method not allowed"});
+  const key=process.env.STRIPE_SECRET_KEY;
+  const now=new Date();
+  const start=Math.floor(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)/1000);
+  const end=Math.floor(now.getTime()/1000)+1;
+  const result={ok:true,generatedAt:now.toISOString(),traffic:{liveVisitors:null,impressions:null,pageViews:null,source:"not_connected"},payments:{grossRevenueUsd:0,successfulPayments:0,refundsUsd:0,feesUsd:null,netRevenueUsd:null,source:key?"stripe":"not_connected"},forecast:{revenueForecastUsd:null,profitForecastUsd:null,basis:"verified_data_required"}};
+  if(!key) return res.status(200).json(result);
+  try{
+    let after="";
+    for(let page=0;page<10;page++){
+      const qs=new URLSearchParams({limit:"100",["created[gte]"]:String(start),["created[lt]"]:String(end)}); if(after) qs.set("starting_after",after);
+      const r=await fetch("https://api.stripe.com/v1/charges?"+qs,{headers:{Authorization:"Bearer "+key}}); const d=await r.json();
+      if(!r.ok) return res.status(502).json({error:d?.error?.message||"Stripe lookup failed"});
+      for(const charge of d.data||[]){ if(!charge.paid) continue; result.payments.successfulPayments++; result.payments.grossRevenueUsd += (Number(charge.amount)||0)/100; result.payments.refundsUsd += (Number(charge.amount_refunded)||0)/100; if(charge.balance_transaction && result.payments.feesUsd===null) result.payments.feesUsd=0; }
+      if(!d.has_more||!d.data?.length) break; after=d.data[d.data.length-1].id;
+    }
+    result.payments.grossRevenueUsd=Number(result.payments.grossRevenueUsd.toFixed(2)); result.payments.refundsUsd=Number(result.payments.refundsUsd.toFixed(2));
+    if(result.payments.feesUsd!==null) result.payments.netRevenueUsd=Number((result.payments.grossRevenueUsd-result.payments.refundsUsd-result.payments.feesUsd).toFixed(2));
+    return res.status(200).json(result);
+  }catch(e){return res.status(502).json({error:e?.message||"Business metrics lookup failed"})}
+}
