@@ -1,6 +1,8 @@
 name: OwnerCloud Worker Heartbeat
 
 on:
+  push:
+    branches: [owner-cloud-foundation]
   workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
