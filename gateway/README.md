@@ -42,3 +42,6 @@ The gateway is designed for horizontal scaling rather than a single browser sess
 Use .github/workflows/google-cloud-deploy.yml after configuring GitHub OIDC/Workload Identity Federation secrets: GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, and GCP_SERVICE_ACCOUNT.
 
 The deployment pipeline builds both the customer gateway and AI2/AI3 worker images into Google Artifact Registry and deploys the service and worker pool directly to Google Cloud. It does not require Vercel or Lovable.
+
+### Deployment credential preflight
+Before Google authentication, the deployment workflow checks that these GitHub Actions secrets are present: GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, and GCP_SERVICE_ACCOUNT. If any are missing, the run stops with the exact missing secret names instead of failing inside the Google auth action. Runtime application secrets GEMINI_API_KEY, DATABASE_URL, and OWNER_ACCESS_TOKEN are checked after authentication.
