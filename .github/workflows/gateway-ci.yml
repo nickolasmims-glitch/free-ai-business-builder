@@ -28,4 +28,8 @@ jobs:
           OWNER_ACCESS_TOKEN=ci-test-token timeout 10s npm start >/tmp/gateway.log 2>&1 &
           sleep 2
           curl -fsS http://127.0.0.1:8080/api/health
+          test "$(curl -s -o /tmp/unauth.json -w '%{http_code}' http://127.0.0.1:8080/api/state)" = "401"
+          curl -fsS -c /tmp/gateway.cookies -H 'content-type: application/json'             -d '{"token":"ci-test-token"}' http://127.0.0.1:8080/api/auth
+          curl -fsS -b /tmp/gateway.cookies http://127.0.0.1:8080/api/state >/tmp/state.json
+          grep -q '"bots"' /tmp/state.json
           cat /tmp/gateway.log
