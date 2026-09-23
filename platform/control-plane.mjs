@@ -31,6 +31,20 @@ const server = http.createServer(async (req, res) => {
         lastRun: state.runs.at(-1) || null
       });
     }
+    if (req.method === "POST" && url.pathname === "/business/metrics") {
+      if (!authorized(req)) return json(res, 401, { error: CONTROL_TOKEN ? "UNAUTHORIZED" : "CONTROL_TOKEN_NOT_CONFIGURED" });
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      const input = body ? JSON.parse(body) : {};
+      const allowed = ["traffic","payments","customers","offers"];
+      const updated = await updateState(s => {
+        s.business ??= {};
+        for (const key of allowed) if (input[key] && typeof input[key] === "object") s.business[key] = { ...(s.business[key] || {}), ...input[key] };
+        s.business.updatedAt = new Date().toISOString();
+        return s;
+      });
+      return json(res, 202, { ok:true, updatedAt:updated.business.updatedAt });
+    }
     if (req.method === "GET" && url.pathname === "/business") {
       const completedRuns = state.runs.filter(r => r.status === "COMPLETE").length;
       const failedRuns = state.runs.filter(r => r.status === "FAILED").length;
