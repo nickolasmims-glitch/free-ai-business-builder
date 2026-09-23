@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "dev": "node --watch server.mjs"
+    "dev": "node --watch server.mjs",
+    "test": "node --test",
+    "check": "node --check server.mjs && node --check worker.mjs && node --check agents.mjs && node --check lottery.mjs && node --check payments.mjs"
   },
   "dependencies": {
     "pg": "^8.16.3"
