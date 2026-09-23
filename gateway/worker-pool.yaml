@@ -22,5 +22,7 @@ spec:
           value: "gemini-3.8-flash"
         - name: AGENT_INTERVAL_MS
           value: "300000"
+        - name: AGENT_THINK_CYCLES
+          value: "4"
         - name: NODE_OPTIONS
           value: "--max-old-space-size=1536"
