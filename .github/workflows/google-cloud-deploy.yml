@@ -13,10 +13,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ env.DEPLOY_SHA }}
 
       - uses: google-github-actions/auth@v2
         with:
@@ -25,7 +27,7 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure project and registry
+      - name: Configure project, registry, runtime identity, and secrets
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -41,52 +43,74 @@ jobs:
             gcloud artifacts repositories create gateway --repository-format=docker --location="${{ secrets.GCP_REGION }}" --description="Customer Gateway images"
           gcloud iam service-accounts describe gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com >/dev/null 2>&1 || \
             gcloud iam service-accounts create gateway-runtime --display-name="Customer Gateway runtime"
-          for spec in "gateway-gemini-api-key:$GEMINI_API_KEY" "gateway-database-url:$DATABASE_URL" "gateway-owner-access-token:$OWNER_ACCESS_TOKEN"; do
-            name="${spec%%:*}"; value="${spec#*:}"
-            gcloud secrets describe "$name" >/dev/null 2>&1 || gcloud secrets create "$name" --replication-policy=automatic
-            printf '%s' "$value" | gcloud secrets versions add "$name" --data-file=-
-          done
+
+          gcloud secrets describe gateway-gemini-api-key >/dev/null 2>&1 || gcloud secrets create gateway-gemini-api-key --replication-policy=automatic
+          gcloud secrets describe gateway-database-url >/dev/null 2>&1 || gcloud secrets create gateway-database-url --replication-policy=automatic
+          gcloud secrets describe gateway-owner-access-token >/dev/null 2>&1 || gcloud secrets create gateway-owner-access-token --replication-policy=automatic
+          printf '%s' "$GEMINI_API_KEY" | gcloud secrets versions add gateway-gemini-api-key --data-file=-
+          printf '%s' "$DATABASE_URL" | gcloud secrets versions add gateway-database-url --data-file=-
+          printf '%s' "$OWNER_ACCESS_TOKEN" | gcloud secrets versions add gateway-owner-access-token --data-file=-
+
           gcloud projects add-iam-policy-binding "${{ secrets.GCP_PROJECT_ID }}" \
             --member="serviceAccount:gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --role="roles/secretmanager.secretAccessor" --quiet
 
+          echo "Resolving enabled secret versions for this deployment"
+          GEMINI_SECRET_VERSION=$(gcloud secrets versions list gateway-gemini-api-key --filter="state=ENABLED" --sort-by="~createTime" --limit=1 --format="value(name.basename())")
+          DATABASE_SECRET_VERSION=$(gcloud secrets versions list gateway-database-url --filter="state=ENABLED" --sort-by="~createTime" --limit=1 --format="value(name.basename())")
+          OWNER_SECRET_VERSION=$(gcloud secrets versions list gateway-owner-access-token --filter="state=ENABLED" --sort-by="~createTime" --limit=1 --format="value(name.basename())")
+          test -n "$GEMINI_SECRET_VERSION" && test -n "$DATABASE_SECRET_VERSION" && test -n "$OWNER_SECRET_VERSION"
+          {
+            echo "GEMINI_SECRET_VERSION=$GEMINI_SECRET_VERSION"
+            echo "DATABASE_SECRET_VERSION=$DATABASE_SECRET_VERSION"
+            echo "OWNER_SECRET_VERSION=$OWNER_SECRET_VERSION"
+          } >> "$GITHUB_ENV"
+
       - name: Build gateway image
         run: |
-          gcloud builds submit gateway             --tag "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/customer-gateway:${{ github.event.workflow_run.head_sha || github.sha }}"
+          gcloud builds submit gateway \
+            --tag "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/customer-gateway:$DEPLOY_SHA"
 
       - name: Build AI2/AI3 worker image
         run: |
-          gcloud builds submit gateway             --config=/dev/stdin <<'EOF'
+          gcloud builds submit gateway \
+            --config=/dev/stdin <<EOF
           steps:
           - name: gcr.io/cloud-builders/docker
-            args: ["build","-f","worker-Dockerfile","-t","${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/ai2-ai3-worker:${{ github.sha }}","."]
+            args: ["build","-f","worker-Dockerfile","-t","${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/ai2-ai3-worker:$DEPLOY_SHA","."]
           images:
-          - "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/ai2-ai3-worker:${{ github.sha }}"
+          - "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/ai2-ai3-worker:$DEPLOY_SHA"
           EOF
 
       - name: Deploy gateway service
         working-directory: gateway
         run: |
           sed -e "s|REGION|${{ secrets.GCP_REGION }}|g" -e "s|PROJECT_ID|${{ secrets.GCP_PROJECT_ID }}|g" cloudrun-service.yaml > /tmp/gateway.yaml
-          sed -i "s|:latest|:${{ github.sha }}|g" /tmp/gateway.yaml
+          sed -i "s|:latest|:$DEPLOY_SHA|g" /tmp/gateway.yaml
           gcloud run services replace /tmp/gateway.yaml --region="${{ secrets.GCP_REGION }}"
           gcloud run services update customer-gateway \
             --region="${{ secrets.GCP_REGION }}" \
             --service-account="gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
-            --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:latest,DATABASE_URL=gateway-database-url:latest,OWNER_ACCESS_TOKEN=gateway-owner-access-token:latest"
+            --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:$GEMINI_SECRET_VERSION,DATABASE_URL=gateway-database-url:$DATABASE_SECRET_VERSION,OWNER_ACCESS_TOKEN=gateway-owner-access-token:$OWNER_SECRET_VERSION"
 
       - name: Deploy worker pool
         working-directory: gateway
         run: |
           sed -e "s|REGION|${{ secrets.GCP_REGION }}|g" -e "s|PROJECT_ID|${{ secrets.GCP_PROJECT_ID }}|g" worker-pool.yaml > /tmp/worker-pool.yaml
-          sed -i "s|:latest|:${{ github.sha }}|g" /tmp/worker-pool.yaml
+          sed -i "s|:latest|:$DEPLOY_SHA|g" /tmp/worker-pool.yaml
           gcloud run worker-pools replace /tmp/worker-pool.yaml --region="${{ secrets.GCP_REGION }}"
           gcloud run worker-pools update ai2-ai3-workers \
             --region="${{ secrets.GCP_REGION }}" \
             --service-account="gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
-            --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:latest,DATABASE_URL=gateway-database-url:latest"
+            --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:$GEMINI_SECRET_VERSION,DATABASE_URL=gateway-database-url:$DATABASE_SECRET_VERSION"
 
-      - name: Verify deployed service
+      - name: Verify deployed resources
         run: |
-          gcloud run services describe customer-gateway --region="${{ secrets.GCP_REGION }}" --format="value(status.url)"
-          gcloud run worker-pools describe ai2-ai3-workers --region="${{ secrets.GCP_REGION }}" --format="value(status.latestCreatedRevisionName)"
+          set -euo pipefail
+          SERVICE_URL=$(gcloud run services describe customer-gateway --region="${{ secrets.GCP_REGION }}" --format="value(status.url)")
+          REVISION=$(gcloud run services describe customer-gateway --region="${{ secrets.GCP_REGION }}" --format="value(status.latestReadyRevisionName)")
+          WORKER_REVISION=$(gcloud run worker-pools describe ai2-ai3-workers --region="${{ secrets.GCP_REGION }}" --format="value(status.latestCreatedRevisionName)")
+          test -n "$SERVICE_URL" && test -n "$REVISION" && test -n "$WORKER_REVISION"
+          echo "Gateway URL: $SERVICE_URL"
+          echo "Gateway ready revision: $REVISION"
+          echo "AI2/AI3 worker revision: $WORKER_REVISION"
