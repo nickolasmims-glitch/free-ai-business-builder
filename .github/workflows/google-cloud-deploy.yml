@@ -31,10 +31,33 @@ jobs:
             if [ -z "${!v}" ]; then echo "Missing GitHub Actions secret: $v"; exit 1; fi
           done
 
+      - name: Normalize Google Workload Identity configuration
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          PROVIDER="$WIF_PROVIDER"
+          PROVIDER="${PROVIDER#//iam.googleapis.com/}"
+          PROVIDER="${PROVIDER#https://iam.googleapis.com/}"
+          case "$PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*) ;;
+            *)
+              echo "GCP_WIF_PROVIDER is not a valid full Workload Identity Provider resource name."
+              echo "Expected: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER"
+              exit 1
+              ;;
+          esac
+          printf "WIF_PROVIDER=%s\n" "$PROVIDER" >> "$GITHUB_ENV"
+          printf "GCP_PROJECT_ID=%s\n" "$PROJECT_ID" >> "$GITHUB_ENV"
+          printf "GCP_SERVICE_ACCOUNT=%s\n" "$SERVICE_ACCOUNT" >> "$GITHUB_ENV"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up gcloud
