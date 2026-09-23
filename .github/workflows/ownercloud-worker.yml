@@ -30,4 +30,10 @@ jobs:
           FOUR_MONTH_DEADLINE: "2027-01-25"
           VERCEL_OIDC_TOKEN: ${{ secrets.VERCEL_OIDC_TOKEN }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AI2_PROVIDER: ${{ vars.AI2_PROVIDER }}
+          AI3_PROVIDER: ${{ vars.AI3_PROVIDER }}
+          AI2_MODEL: ${{ vars.AI2_MODEL }}
+          AI3_MODEL: ${{ vars.AI3_MODEL }}
         run: node scripts/ownercloud-agent-runner.mjs
