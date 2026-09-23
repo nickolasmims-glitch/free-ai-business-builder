@@ -49,3 +49,16 @@ export async function businessMetrics(req,res){
     return res.status(200).json(result);
   }catch(e){return res.status(502).json({error:e?.message||"Business metrics lookup failed"})}
 }
+
+export async function analyticsEvent(req,res){
+  if(req.method!=="POST") return res.status(405).json({error:"POST only"});
+  try{
+    const body=req.body||{}; const type=String(body.type||"").slice(0,40); const path=String(body.path||"").slice(0,200); const referrer=String(body.referrer||"").slice(0,300);
+    if(!["page_view","impression","conversion"].includes(type)) return res.status(400).json({error:"Unsupported event"});
+    const endpoint=process.env.OWNER_CLOUD_ANALYTICS_URL;
+    if(!endpoint) return res.status(202).json({ok:true,accepted:true,stored:false,reason:"analytics_sink_not_configured"});
+    const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json","authorization:process.env.OWNER_CLOUD_ANALYTICS_TOKEN?"Bearer "+process.env.OWNER_CLOUD_ANALYTICS_TOKEN:""},body:JSON.stringify({type,path,referrer,at:new Date().toISOString()})});
+    if(!r.ok) return res.status(502).json({error:"Analytics sink rejected event"});
+    return res.status(202).json({ok:true,accepted:true,stored:true});
+  }catch(e){return res.status(502).json({error:e?.message||"Analytics event failed"})}
+}
