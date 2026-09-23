@@ -1,1 +1,0 @@
-export default function handler(req,res){res.status(200).json({ok:true,service:"ai-business-builder",timestamp:new Date().toISOString(),integrations:{stripe:Boolean(process.env.STRIPE_SECRET_KEY),resend:Boolean(process.env.RESEND_API_KEY)}})}
