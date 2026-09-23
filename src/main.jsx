@@ -13,6 +13,7 @@ const modules=[
  {icon:Handshake,title:"AI 3 Helper",text:"Turn AI 3 plans into prioritized tasks, approvals and verification checkpoints.",detail:"A mission copilot that keeps AI 3 focused on the next executable step without inventing results."}
 ];
 
+/* LotteryCloud deployment sync */
 function App(){
  const [anonymousMode,setAnonymousMode]=useState(()=>{try{return localStorage.getItem("aibb_anonymous_mode")!=="false"}catch{return true}});
  const [autopilot,setAutopilot]=useState(()=>{try{return localStorage.getItem("aibb_autopilot")!=="false"}catch{return true}}),[missionAction,setMissionAction]=useState("Waiting for mission evaluation…");
