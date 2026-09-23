@@ -149,3 +149,6 @@ process.on("SIGINT", () => { stopping = true; });
 
 console.log(JSON.stringify({ service: "OwnerCloudWorker", status: "STARTING", intervalMs, heartbeatMs }));
 await loop();
+
+
+// Guardian communication channel: every worker failure is persisted and can be surfaced to the OwnerCloud control panel.
