@@ -45,6 +45,14 @@ const server = http.createServer(async (req, res) => {
       });
       return json(res, 202, { ok:true, updatedAt:updated.business.updatedAt });
     }
+    if (req.method === "GET" && url.pathname === "/analytics") {
+      return json(res, 200, {
+        ok: true,
+        generatedAt: new Date().toISOString(),
+        traffic: state.business?.traffic || {},
+        source: "OwnerCloud persistent state"
+      });
+    }
     if (req.method === "GET" && url.pathname === "/business") {
       const completedRuns = state.runs.filter(r => r.status === "COMPLETE").length;
       const failedRuns = state.runs.filter(r => r.status === "FAILED").length;
