@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prebuild": "nitro prepare"
   },
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
@@ -15,7 +16,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "lucide-react": "1.47.0",
-    "workflow": "4.8.9"
+    "workflow": "4.8.9",
+    "nitro": "3.0.260903-beta"
   },
   "devDependencies": {}
 }
