@@ -5,6 +5,7 @@ const DB_URL = process.env.DATABASE_URL;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const INTERVAL_MS = Number(process.env.AGENT_INTERVAL_MS || 300000);
+const ALERT_WEBHOOK_URL = process.env.ALERT_WEBHOOK_URL || "";
 
 if (!DB_URL) throw new Error("DATABASE_URL is required for autonomous workers");
 if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY is required for autonomous workers");
@@ -35,27 +36,44 @@ async function gemini(prompt) {
   const d=await r.json(); if(!r.ok) throw new Error(d?.error?.message||"Gemini worker call failed");
   return d?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
 }
+async function notify(detail, data) {
+  if (!ALERT_WEBHOOK_URL) return false;
+  try { const r = await fetch(ALERT_WEBHOOK_URL, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({gateway:"Customer Gateway",alert:{detail,data,at:new Date().toISOString()}}) }); return r.ok; } catch { return false; }
+}
+function parseDecision(raw) {
+  try { return JSON.parse(raw.replace(/^```json|^```$/g,"").trim()); } catch { return { shouldAddBot:false, priority:"review", reason:"Planner returned non-JSON output", raw }; }
+}
+async function agentDecision(agent, facts) {
+  const role = agent === "AI2" ? "Execution Engineer" : "Research & Growth Engineer";
+  const search = agent === "AI3" ? " Use Google Search when useful." : "";
+  const prompt = "You are " + agent + ", the " + role + "." + search + " Review gateway facts: active bots=" + facts.bots + "; projects=" + facts.projects + ". Identify the highest-value task, whether a specialized bot is needed, and any upgrade proposal. Return JSON: priority, shouldAddBot, botName, botRole, reason, upgradeProposal. Do not claim unexecuted work as complete.";
+  return parseDecision(await gemini(prompt));
+}
 async function tick() {
   const s = await state();
   addEvent(s,"worker_heartbeat","AI2/AI3","AI2 and AI3 worker cycle started");
-  const prompt = `You are the combined planning layer for AI2 (execution engineering) and AI3 (research/growth). Review these current gateway facts: active bots=${s.bots.filter(b=>b.status==="active").map(b=>b.name).join(",")||"none"}; projects=${s.projects.map(p=>p.name).join(",")||"none"}. Return JSON with fields: priority, shouldAddBot, botName, botRole, reason, upgradeProposal. Do not claim that work was completed. Never hide or suppress actions.`;
+  const facts = { bots:s.bots.filter(b=>b.status==="active").map(b=>b.name).join(",")||"none", projects:s.projects.map(p=>p.name).join(",")||"none" };
   try {
-    const raw = await gemini(prompt);
-    let d; try { d=JSON.parse(raw.replace(/^\`\`\`json|^\`\`\`$/g,"").trim()); } catch { d={priority:"review",shouldAddBot:false,reason:"Non-JSON planner output",raw}; }
-    addEvent(s,"ai_cycle","AI2/AI3","AI2/AI3 completed a planning cycle",{decision:d});
-    if(d.shouldAddBot && d.botName && d.botRole){
-      const bot={id:randomUUID(),key:"auto-"+randomUUID(),name:d.botName,role:d.botRole,reason:d.reason||"AI2/AI3 decision",status:"active",createdAt:new Date().toISOString(),createdBy:"AI2/AI3"};
-      s.bots.unshift(bot);
-      const ev=addEvent(s,"bot_created","AI2/AI3",`AI2/AI3 added bot: ${bot.name}`,{bot});
-      s.alerts=[{id:randomUUID(),at:new Date().toISOString(),detail:`AI2/AI3 added bot: ${bot.name}`,data:{bot,event:ev},delivered:false},...(s.alerts||[])].slice(0,1000);
-    }
-    if(d.upgradeProposal){
-      const ev=addEvent(s,"upgrade_proposed","AI2/AI3","AI2/AI3 proposed an upgrade",{proposal:d.upgradeProposal});
-      s.alerts=[{id:randomUUID(),at:new Date().toISOString(),detail:"AI2/AI3 proposed an upgrade; owner notification recorded.",data:{proposal:d.upgradeProposal,event:ev},delivered:false},...(s.alerts||[])].slice(0,1000);
+    for (const agent of ["AI2","AI3"]) {
+      const d = await agentDecision(agent, facts);
+      addEvent(s,"ai_cycle",agent,agent+" completed a planning cycle",{decision:d});
+      if (d.shouldAddBot && d.botName && d.botRole && !s.bots.some(b=>b.status==="active" && b.name.toLowerCase()===String(d.botName).toLowerCase())) {
+        const bot={id:randomUUID(),key:"auto-"+randomUUID(),name:d.botName,role:d.botRole,reason:d.reason||agent+" decision",status:"active",createdAt:new Date().toISOString(),createdBy:agent};
+        s.bots.unshift(bot);
+        const ev=addEvent(s,"bot_created",agent,agent+" added bot: "+bot.name,{bot});
+        const delivered=await notify(agent+" added bot: "+bot.name,{bot,event:ev});
+        s.alerts=[{id:randomUUID(),at:new Date().toISOString(),detail:agent+" added bot: "+bot.name,data:{bot,event:ev},delivered},...(s.alerts||[])].slice(0,1000);
+      }
+      if (d.upgradeProposal) {
+        const ev=addEvent(s,"upgrade_proposed",agent,agent+" proposed an upgrade",{proposal:d.upgradeProposal});
+        const delivered=await notify(agent+" proposed an upgrade",{proposal:d.upgradeProposal,event:ev});
+        s.alerts=[{id:randomUUID(),at:new Date().toISOString(),detail:agent+" proposed an upgrade; owner notification recorded.",data:{proposal:d.upgradeProposal,event:ev},delivered},...(s.alerts||[])].slice(0,1000);
+      }
     }
   } catch(e) {
     addEvent(s,"worker_error","AI2/AI3",e.message);
-    s.alerts=[{id:randomUUID(),at:new Date().toISOString(),detail:"AI2/AI3 worker error",data:{error:e.message},delivered:false},...(s.alerts||[])].slice(0,1000);
+    const delivered=await notify("AI2/AI3 worker error",{error:e.message});
+    s.alerts=[{id:randomUUID(),at:new Date().toISOString(),detail:"AI2/AI3 worker error",data:{error:e.message},delivered},...(s.alerts||[])].slice(0,1000);
   }
   await save(s);
 }
