@@ -52,3 +52,5 @@ jobs:
 
       - name: Run AI2 + AI3 Guardian worker
         run: node scripts/guardian-runner.mjs
+
+# Keep Guardian trigger active on every main update.
