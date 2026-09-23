@@ -18,6 +18,7 @@ jobs:
     env:
       JAY_STRICT: "true"
       JAY_EVIDENCE_FILE: /tmp/jay-evidence.json
+      JAY_MEMORY_FILE: .jay/jay-memory.json
     steps:
       - name: Checkout current source
         uses: actions/checkout@v4
@@ -33,37 +34,33 @@ jobs:
       - name: Build baseline evidence
         shell: bash
         run: |
-          cat > "$JAY_EVIDENCE_FILE" <<'JSON'
+          cat > "$JAY_EVIDENCE_FILE" <<JSON
           {
-            "deployment": {
-              "status": "UNVERIFIED",
-              "evidence": "Jay requires independent deployment evidence for the exact commit."
-            },
-            "aiWorkers": {
-              "status": "UNVERIFIED",
-              "evidence": "Jay requires execution evidence explicitly reporting AI_COMPLETE for AI2 and AI3."
-            },
-            "revenue": {
-              "status": "UNVERIFIED",
-              "evidence": "Jay requires verified Stripe evidence; no revenue is assumed."
-            },
-            "codeFix": {
-              "status": "VERIFIED",
-              "evidence": "The current GitHub commit exists: $GITHUB_SHA"
-            },
-            "liveApp": {
-              "status": "UNVERIFIED",
-              "evidence": "A GitHub commit alone does not prove production is live."
-            }
+            "deployment": {"status":"UNVERIFIED","evidence":"Jay requires independent deployment evidence for exact commit $GITHUB_SHA."},
+            "aiWorkers": {"status":"UNVERIFIED","evidence":"Jay requires explicit AI_COMPLETE evidence for AI2 and AI3."},
+            "revenue": {"status":"UNVERIFIED","evidence":"Jay requires verified Stripe evidence; revenue is never assumed."},
+            "codeFix": {"status":"VERIFIED","evidence":"Current GitHub commit exists: $GITHUB_SHA"},
+            "liveApp": {"status":"UNVERIFIED","evidence":"A GitHub commit does not prove production is live."}
           }
           JSON
 
       - name: Jay truth audit
         run: node scripts/jay-truth-guardian.mjs
 
+      - name: Jay learning update
+        if: always()
+        run: node scripts/jay-learning-engine.mjs
+
+      - name: Upload Jay memory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jay-truth-memory
+          path: .jay/jay-memory.json
+          retention-days: 30
+
       - name: Publish Jay verdict
         if: always()
         run: |
-          echo "JAY VERDICT"
-          echo "Jay does not convert attempts into success."
-          echo "See the Truth Guardian job log for the evidence-backed verdict."
+          echo "JAY — DIRECT OWNER REPORT"
+          echo "Jay verifies evidence; the assistant's statements are not evidence."
