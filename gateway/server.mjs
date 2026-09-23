@@ -7,6 +7,7 @@ import { Pool } from "pg";
 import { ensureCoreAgents } from "./agents.mjs";
 import { lotterySignal } from "./lottery.mjs";
 import { paymentStatus } from "./payments.mjs";
+import { createHash } from "node:crypto";
 
 const PORT = Number(process.env.PORT || 8080);
 const DB_URL = process.env.DATABASE_URL || "";
@@ -15,6 +16,9 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const ALERT_WEBHOOK_URL = process.env.ALERT_WEBHOOK_URL || "";
 const AUTO_BOT_MODE = process.env.AUTO_BOT_MODE !== "false";
 const OWNER_ACCESS_TOKEN = process.env.OWNER_ACCESS_TOKEN || "";
+const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 1048576);
+const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN || 120);
+const rateBuckets = new Map();
 const SESSION_COOKIE = "gateway_owner";
 const DATA_DIR = new URL("./data/", import.meta.url).pathname;
 const DATA_FILE = new URL("./data/state.json", import.meta.url).pathname;
@@ -50,7 +54,9 @@ async function saveState() {
 }
 
 function audit(type, actor, detail, data = {}) {
-  const event = { id: randomUUID(), at: new Date().toISOString(), type, actor, detail, data };
+  const prev = state.events?.[0]?.hash || "";
+  const hash = createHash("sha256").update(JSON.stringify({ type, actor, detail, data, prev })).digest("hex");
+  const event = { id: randomUUID(), at: new Date().toISOString(), type, actor, detail, data, prev, hash };
   state.events.unshift(event);
   state.events = state.events.slice(0, 5000);
   return event;
@@ -81,8 +87,10 @@ function json(res, status, body) {
   res.end(out);
 }
 async function body(req) {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  const declared = Number(req.headers["content-length"] || 0);
+  if (declared > MAX_BODY_BYTES) throw new Error("request body too large");
+  const chunks = []; let size = 0;
+  for await (const chunk of req) { size += chunk.length; if (size > MAX_BODY_BYTES) throw new Error("request body too large"); chunks.push(chunk); }
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
@@ -98,6 +106,16 @@ function isAuthorized(req) {
   const cookie = parseCookies(req)[SESSION_COOKIE] || "";
   return bearer === OWNER_ACCESS_TOKEN || cookie === OWNER_ACCESS_TOKEN;
 }
+function allowRate(req, res) {
+  const key = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
+  const now = Date.now(); const bucket = rateBuckets.get(key) || { start: now, count: 0 };
+  if (now - bucket.start >= 60000) { bucket.start = now; bucket.count = 0; }
+  bucket.count++; rateBuckets.set(key, bucket);
+  if (bucket.count > RATE_LIMIT_PER_MIN) { json(res, 429, { error: "rate limit exceeded" }); return false; }
+  if (rateBuckets.size > 10000) rateBuckets.clear();
+  return true;
+}
+
 function requireOwner(req, res) {
   if (!OWNER_ACCESS_TOKEN) {
     json(res, 503, { error: "Owner authentication is not configured. Set OWNER_ACCESS_TOKEN before exposing the gateway." });
@@ -147,9 +165,22 @@ async function createBot(name, role, reason, actor = "gateway") {
 }
 
 async function route(req, res) {
+  const requestId = randomUUID();
+  res.setHeader("x-request-id", requestId);
+  res.setHeader("x-content-type-options", "nosniff");
+  res.setHeader("x-frame-options", "DENY");
+  res.setHeader("referrer-policy", "no-referrer");
+  if (!allowRate(req, res)) return;
   const u = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   if (req.method === "GET" && u.pathname === "/api/health") {
-    return json(res, 200, { ok: true, service: "customer-gateway", time: new Date().toISOString(), persistence: pool ? "postgres" : "local-dev-only", aiConfigured: Boolean(GEMINI_KEY) });
+    let dbOk = !pool;
+    if (pool) { try { await pool.query("SELECT 1"); dbOk = true; } catch { dbOk = false; } }
+    const lastHeartbeat = state.events.find(e => e.type === "worker_heartbeat");
+    return json(res, dbOk && Boolean(OWNER_ACCESS_TOKEN) ? 200 : 503, { ok: dbOk, service: "customer-gateway", time: new Date().toISOString(), persistence: pool ? "postgres" : "local-dev-only", aiConfigured: Boolean(GEMINI_KEY), ownerAuthConfigured: Boolean(OWNER_ACCESS_TOKEN), workerHeartbeat: lastHeartbeat?.at || null });
+  }
+  if (req.method === "GET" && u.pathname === "/api/ready") {
+    const ready = Boolean(pool && GEMINI_KEY && OWNER_ACCESS_TOKEN);
+    return json(res, ready ? 200 : 503, { ready, checks: { postgres: Boolean(pool), gemini: Boolean(GEMINI_KEY), ownerAuth: Boolean(OWNER_ACCESS_TOKEN) } });
   }
   if (req.method === "POST" && u.pathname === "/api/auth") {
     const b = await body(req);
@@ -164,6 +195,11 @@ async function route(req, res) {
     if (!requireOwner(req, res)) return;
   }
   if (req.method === "GET" && u.pathname === "/api/state") return json(res, 200, publicState());
+  if (req.method === "GET" && u.pathname === "/api/metrics") {
+    const activeBots = state.bots.filter(b => b.status === "active").length;
+    const errors = state.events.filter(e => e.type === "error" || e.type === "worker_error").length;
+    return json(res, 200, { uptimeSeconds: Math.floor(process.uptime()), projects: state.projects.length, activeBots, events: state.events.length, alerts: state.alerts.length, errors, requestId });
+  }
   if (req.method === "GET" && u.pathname === "/api/payments/status") return json(res, 200, paymentStatus());
   if (req.method === "GET" && u.pathname === "/api/lottery/signals") {
     const games = ["Pick 3", "Powerball", "Mega Millions"];
@@ -274,6 +310,6 @@ ensureCoreAgents(state);
 audit("gateway_started", "system", "Customer Gateway started with AI2 and AI3 core agents");
 await saveState();
 http.createServer((req, res) => route(req, res).catch(e => {
-  audit("error", "gateway", e.message);
-  json(res, 500, { error: e.message });
+  audit("error", "gateway", e.message, { requestId });
+  json(res, 500, { error: e.message, requestId });
 })).listen(PORT, () => console.log(`Customer Gateway listening on :${PORT}`));
