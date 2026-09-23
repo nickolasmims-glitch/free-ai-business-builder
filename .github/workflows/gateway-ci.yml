@@ -4,7 +4,7 @@ on:
   push:
     branches: [ground-up-gateway]
   pull_request:
-    branches: [ground-up-gateway]
+    branches: [main]
 
 jobs:
   gateway:
