@@ -20,9 +20,29 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure project and registry
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OWNER_ACCESS_TOKEN: ${{ secrets.OWNER_ACCESS_TOKEN }}
         run: |
+          set -euo pipefail
+          test -n "$GEMINI_API_KEY" || { echo "Missing GitHub secret: GEMINI_API_KEY"; exit 1; }
+          test -n "$DATABASE_URL" || { echo "Missing GitHub secret: DATABASE_URL"; exit 1; }
+          test -n "$OWNER_ACCESS_TOKEN" || { echo "Missing GitHub secret: OWNER_ACCESS_TOKEN"; exit 1; }
           gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
-          gcloud artifacts repositories describe gateway --location="${{ secrets.GCP_REGION }}" >/dev/null 2>&1 ||             gcloud artifacts repositories create gateway --repository-format=docker --location="${{ secrets.GCP_REGION }}" --description="Customer Gateway images"
+          gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com
+          gcloud artifacts repositories describe gateway --location="${{ secrets.GCP_REGION }}" >/dev/null 2>&1 || \
+            gcloud artifacts repositories create gateway --repository-format=docker --location="${{ secrets.GCP_REGION }}" --description="Customer Gateway images"
+          gcloud iam service-accounts describe gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com >/dev/null 2>&1 || \
+            gcloud iam service-accounts create gateway-runtime --display-name="Customer Gateway runtime"
+          for spec in "gateway-gemini-api-key:$GEMINI_API_KEY" "gateway-database-url:$DATABASE_URL" "gateway-owner-access-token:$OWNER_ACCESS_TOKEN"; do
+            name="${spec%%:*}"; value="${spec#*:}"
+            gcloud secrets describe "$name" >/dev/null 2>&1 || gcloud secrets create "$name" --replication-policy=automatic
+            printf '%s' "$value" | gcloud secrets versions add "$name" --data-file=-
+          done
+          gcloud projects add-iam-policy-binding "${{ secrets.GCP_PROJECT_ID }}" \
+            --member="serviceAccount:gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --role="roles/secretmanager.secretAccessor" --quiet
 
       - name: Build gateway image
         run: |
@@ -44,6 +64,10 @@ jobs:
           sed -e "s|REGION|${{ secrets.GCP_REGION }}|g" -e "s|PROJECT_ID|${{ secrets.GCP_PROJECT_ID }}|g" cloudrun-service.yaml > /tmp/gateway.yaml
           sed -i "s|:latest|:${{ github.sha }}|g" /tmp/gateway.yaml
           gcloud run services replace /tmp/gateway.yaml --region="${{ secrets.GCP_REGION }}"
+          gcloud run services update customer-gateway \
+            --region="${{ secrets.GCP_REGION }}" \
+            --service-account="gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:latest,DATABASE_URL=gateway-database-url:latest,OWNER_ACCESS_TOKEN=gateway-owner-access-token:latest"
 
       - name: Deploy worker pool
         working-directory: gateway
@@ -51,6 +75,10 @@ jobs:
           sed -e "s|REGION|${{ secrets.GCP_REGION }}|g" -e "s|PROJECT_ID|${{ secrets.GCP_PROJECT_ID }}|g" worker-pool.yaml > /tmp/worker-pool.yaml
           sed -i "s|:latest|:${{ github.sha }}|g" /tmp/worker-pool.yaml
           gcloud run worker-pools replace /tmp/worker-pool.yaml --region="${{ secrets.GCP_REGION }}"
+          gcloud run worker-pools update ai2-ai3-workers \
+            --region="${{ secrets.GCP_REGION }}" \
+            --service-account="gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:latest,DATABASE_URL=gateway-database-url:latest"
 
       - name: Verify deployed service
         run: |
