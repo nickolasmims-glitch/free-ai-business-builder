@@ -11,7 +11,7 @@ const GOALS = {
 };
 
 const topic = String(process.env.AUTOPILOT_TOPIC || "AI workflow automation for local service businesses").slice(0, 180);
-const directCommand = String(process.env.GUARDIAN_COMMAND || "Continue the revenue mission. Research, evaluate, and execute every legitimate zero-cost internal step available. Do not spend, transfer, withdraw, invest, purchase, refund, or make financial commitments.").slice(0, 2000);
+const directCommand = String(process.env.GUARDIAN_COMMAND || "Continue the revenue mission. Research, evaluate, and execute every legitimate zero-cost internal step available. Keep all financial and irreversible actions owner-gated.").slice(0, 2000);
 
 const verifiedRevenue = await getVerifiedStripeRevenue();
 const heartbeat = await guardianHeartbeat({ cycle: 1, goals: GOALS, directCommand, verifiedRevenue });
