@@ -4,7 +4,7 @@ import { randomUUID, createHash } from "node:crypto";
 const DB_URL = process.env.DATABASE_URL;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-const INTERVAL_MS = Number(process.env.AGENT_INTERVAL_MS || 300000);
+const INTERVAL_MS = Math.max(1000, Number(process.env.AGENT_INTERVAL_MS || 30000));
 const THINK_CYCLES = Math.max(1, Math.min(12, Number(process.env.AGENT_THINK_CYCLES || 4)));
 const ALERT_WEBHOOK_URL = process.env.ALERT_WEBHOOK_URL || "";
 
@@ -257,5 +257,18 @@ async function tick() {
   await pool.query("SELECT pg_advisory_unlock(81723651)");
 }
 
-await tick();
-setInterval(() => tick().catch(e => console.error(e)), INTERVAL_MS);
+async function runForever() {
+  while (true) {
+    const started = Date.now();
+    try {
+      await tick();
+    } catch (e) {
+      console.error("AI2/AI3 cycle failure:", e);
+    }
+    const elapsed = Date.now() - started;
+    const waitMs = Math.max(1000, INTERVAL_MS - elapsed);
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+  }
+}
+
+await runForever();
