@@ -309,7 +309,11 @@ await loadState();
 ensureCoreAgents(state);
 audit("gateway_started", "system", "Customer Gateway started with AI2 and AI3 core agents");
 await saveState();
-http.createServer((req, res) => route(req, res).catch(e => {
-  audit("error", "gateway", e.message, { requestId });
-  json(res, 500, { error: e.message, requestId });
-})).listen(PORT, () => console.log(`Customer Gateway listening on :${PORT}`));
+http.createServer((req, res) => {
+  const requestId = randomUUID();
+  route(req, res).catch(async e => {
+    try { audit("error", "gateway", e.message, { requestId }); await saveState(); } catch {}
+    if (!res.headersSent) res.setHeader("x-request-id", requestId);
+    if (!res.writableEnded) json(res, 500, { error: e.message, requestId });
+  });
+}).listen(PORT, () => console.log(`Customer Gateway listening on :${PORT}`));
