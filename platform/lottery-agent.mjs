@@ -6,6 +6,7 @@ const STATE_FILE=path.join(DATA_DIR,"lottery-state.json");
 const BASE="https://www.texaslottery.com/export/sites/lottery/Games/Pick_3";
 const SOURCES={morning:BASE+"/morning_pre_test_results.html",day:BASE+"/day_pre_test_results.html",evening:BASE+"/evening_pre_test_results.html",night:BASE+"/night_pre_test_results.html",official:BASE+"/index.html"};
 const INTERVAL=Math.max(60_000,Number(process.env.LOTTERY_AGENT_INTERVAL_MS||300_000));
+const RESEARCH=["Texas Lottery Pick 3 pre-test results","Texas Lottery Pick 3 past winning numbers","Texas Lottery Pick 3 number frequency","Texas Lottery Pick 3 odds","Texas Lottery Pick 3 machine ball set pre-test"];
 
 async function load(){await fs.mkdir(DATA_DIR,{recursive:true});try{return JSON.parse(await fs.readFile(STATE_FILE,"utf8"))}catch{return {status:"STARTING",scope:"Texas Pick 3 only",ownerOnly:true,pretests:[],draws:[],predictions:[]}}}
 async function save(s){const tmp=STATE_FILE+".tmp";s.updatedAt=new Date().toISOString();await fs.writeFile(tmp,JSON.stringify(s,null,2));await fs.rename(tmp,STATE_FILE)}
@@ -23,7 +24,7 @@ function analyze(pre,draws){
 async function cycle(){
  const pre=[];for(const k of ["morning","day","evening","night"]){try{pre.push(...parsePre(await get(SOURCES[k])))}catch{}}
  let draws=[];try{draws=parseOfficial(await get(SOURCES.official))}catch{}
- const s=await load();s.status="RUNNING";s.scope="Texas Lottery Pick 3 only";s.ownerOnly=true;s.pretests=pre.slice(-1000);s.draws=draws.slice(-500);s.predictions=[{generatedAt:new Date().toISOString(),method:"pre-test + official Pick 3 positional frequency and recurrence analysis",...analyze(s.pretests,s.draws)}];s.notes=["Owner-only reporting.","No wagering, purchasing, payment, or financial actions.","Candidates are statistical pattern outputs, not guaranteed winning numbers."];await save(s);console.log(JSON.stringify({service:"TexasPick3PatternAnalyst",status:"UPDATED",top:s.predictions[0].candidates.slice(0,5)}))
+ const s=await load();s.status="RUNNING";s.scope="Texas Lottery Pick 3 only";s.ownerOnly=true;s.pretests=pre.slice(-1000);s.draws=draws.slice(-500);s.predictions=[{generatedAt:new Date().toISOString(),method:"pre-test + official Pick 3 positional frequency and recurrence analysis",...analyze(s.pretests,s.draws)}];s.notes=["Owner-only reporting.","No wagering, purchasing, payment, or financial actions.","Candidates are statistical pattern outputs, not guaranteed winning numbers.","Research scope includes official Texas Lottery Pick 3 pre-tests, historical results, frequency data, odds, and machine/ball-set documentation.","External web research may identify hypotheses but cannot establish a guaranteed winning method."];s.researchTopics=RESEARCH;await save(s);console.log(JSON.stringify({service:"TexasPick3PatternAnalyst",status:"UPDATED",top:s.predictions[0].candidates.slice(0,5)}))
 }
 console.log(JSON.stringify({service:"TexasPick3PatternAnalyst",status:"STARTING",scope:"Texas Lottery Pick 3 only",intervalMs:INTERVAL}));
 while(true){try{await cycle()}catch(e){const s=await load();s.status="ERROR";s.error=String(e).slice(0,1000);await save(s);console.error(JSON.stringify({service:"TexasPick3PatternAnalyst",status:"ERROR",error:String(e)}))}await new Promise(r=>setTimeout(r,INTERVAL))}
