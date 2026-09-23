@@ -1,3 +1,5 @@
+import { assertBoxedEnvironment } from "../platform/ai-box-guard.mjs";
+assertBoxedEnvironment(process.env);
 import { runAgentCycle } from "../workflows/steps/ai-agents.js";
 import { guardianAuditCycle, guardianHeartbeat, guardianGate, getVerifiedStripeRevenue } from "../workflows/steps/guardian.js";
 
