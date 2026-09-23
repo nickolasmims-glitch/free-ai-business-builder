@@ -23,8 +23,9 @@ jobs:
       - run: node --check agents.mjs
       - run: node --check lottery.mjs
       - run: node --check payments.mjs
+      - run: npm test
       - run: |
-          timeout 10s npm start >/tmp/gateway.log 2>&1 &
+          OWNER_ACCESS_TOKEN=ci-test-token timeout 10s npm start >/tmp/gateway.log 2>&1 &
           sleep 2
           curl -fsS http://127.0.0.1:8080/api/health
           cat /tmp/gateway.log
