@@ -1,0 +1,30 @@
+name: Ground-Up Gateway CI
+
+on:
+  push:
+    branches: [ground-up-gateway]
+  pull_request:
+    branches: [ground-up-gateway]
+
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: node --check server.mjs
+      - run: node --check worker.mjs
+      - run: node --check agents.mjs
+      - run: node --check lottery.mjs
+      - run: node --check payments.mjs
+      - run: |
+          timeout 10s npm start >/tmp/gateway.log 2>&1 &
+          sleep 2
+          curl -fsS http://127.0.0.1:8080/api/health
+          cat /tmp/gateway.log
