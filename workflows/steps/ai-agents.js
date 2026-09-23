@@ -117,9 +117,11 @@ async function askAgent(agent, prompt) {
     const model = agent.startsWith("AI 2") ? (process.env.AI2_MODEL || "gpt-5.6-sol") : (process.env.AI3_MODEL || "gpt-5.6-terra");
     const result = await askDirectOpenAI(agent, prompt, openAIKey, model);
     if (result.status === "AI_COMPLETE") return result;
-    if (result.httpStatus === 429 || result.errorClass === "RETRYABLE_UPSTREAM") {
-      console.log("[OwnerCloud] OpenAI unavailable; falling back to local Transformers runtime.");
-      return askLocalModel(agent, prompt);
+    if (result.status !== "AI_COMPLETE") {
+      console.log("[OwnerCloud] OpenAI unavailable (" + (result.httpStatus || result.errorClass || "unknown") + "); falling back to local Transformers runtime.");
+      const fallback = await askLocalModel(agent, prompt);
+      if (fallback.status === "AI_COMPLETE") return fallback;
+      return { ...result, fallback: { provider: fallback.provider, model: fallback.model, status: fallback.status, errorClass: fallback.errorClass, message: fallback.message } };
     }
     return result;
   }
@@ -129,9 +131,11 @@ async function askAgent(agent, prompt) {
     const model = agent.startsWith("AI 2") ? (process.env.AI2_MODEL || "openai/gpt-5.6-sol") : (process.env.AI3_MODEL || "openai/gpt-5.6-terra");
     const result = await askVercelGateway(agent, prompt, gatewayKey, model);
     if (result.status === "AI_COMPLETE") return result;
-    if (result.httpStatus === 403 || result.httpStatus === 429 || result.errorClass === "RETRYABLE_UPSTREAM") {
-      console.log("[OwnerCloud] Vercel Gateway unavailable; falling back to local Transformers runtime.");
-      return askLocalModel(agent, prompt);
+    if (result.status !== "AI_COMPLETE") {
+      console.log("[OwnerCloud] Vercel Gateway unavailable (" + (result.httpStatus || result.errorClass || "unknown") + "); falling back to local Transformers runtime.");
+      const fallback = await askLocalModel(agent, prompt);
+      if (fallback.status === "AI_COMPLETE") return fallback;
+      return { ...result, fallback: { provider: fallback.provider, model: fallback.model, status: fallback.status, errorClass: fallback.errorClass, message: fallback.message } };
     }
     return result;
   }
