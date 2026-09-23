@@ -1,0 +1,35 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: customer-gateway
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/cpu-throttling: "false"
+        autoscaling.knative.dev/minScale: "3"
+        autoscaling.knative.dev/maxScale: "50"
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+      - name: gateway
+        image: REGION-docker.pkg.dev/PROJECT_ID/gateway/customer-gateway:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+        env:
+        - name: PORT
+          value: "8080"
+        - name: GEMINI_MODEL
+          value: "gemini-3.8-flash"
+        - name: AUTO_BOT_MODE
+          value: "true"
+        - name: MAX_BODY_BYTES
+          value: "1048576"
+        - name: RATE_LIMIT_PER_MIN
+          value: "120"

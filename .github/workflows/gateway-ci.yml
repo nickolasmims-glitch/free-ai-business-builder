@@ -1,0 +1,35 @@
+name: Ground-Up Gateway CI
+
+on:
+  push:
+    branches: [ground-up-gateway]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: node --check server.mjs
+      - run: node --check worker.mjs
+      - run: node --check agents.mjs
+      - run: node --check lottery.mjs
+      - run: node --check payments.mjs
+      - run: npm test
+      - run: |
+          OWNER_ACCESS_TOKEN=ci-test-token timeout 10s npm start >/tmp/gateway.log 2>&1 &
+          sleep 2
+          curl -fsS http://127.0.0.1:8080/api/health
+          test "$(curl -s -o /tmp/unauth.json -w '%{http_code}' http://127.0.0.1:8080/api/state)" = "401"
+          curl -fsS -c /tmp/gateway.cookies -H 'content-type: application/json'             -d '{"token":"ci-test-token"}' http://127.0.0.1:8080/api/auth
+          curl -fsS -b /tmp/gateway.cookies http://127.0.0.1:8080/api/state >/tmp/state.json
+          grep -q '"bots"' /tmp/state.json
+          cat /tmp/gateway.log
