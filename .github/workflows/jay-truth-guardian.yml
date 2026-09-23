@@ -38,18 +38,20 @@ jobs:
       - name: Collect independent GitHub evidence
         run: node scripts/jay-evidence-collector.mjs
 
-      - name: Build baseline claim evidence
+      - name: Build Jay evidence input
         shell: bash
         run: |
-          cat > "$JAY_EVIDENCE_FILE" <<JSON
-          {
-            "deployment": {"status":"UNVERIFIED","evidence":"Jay requires independent Vercel evidence for exact commit $GITHUB_SHA."},
-            "aiWorkers": {"status":"UNVERIFIED","evidence":"Jay requires explicit AI_COMPLETE evidence for AI2 and AI3."},
-            "revenue": {"status":"UNVERIFIED","evidence":"Jay requires verified Stripe evidence; revenue is never assumed."},
-            "codeFix": {"status":"VERIFIED","evidence":"Current GitHub commit exists: $GITHUB_SHA"},
-            "liveApp": {"status":"UNVERIFIED","evidence":"A GitHub commit does not prove production is live."}
-          }
-          JSON
+          if [ ! -s "$JAY_EVIDENCE_FILE" ]; then
+            cat > "$JAY_EVIDENCE_FILE" <<JSON
+            {
+              "deployment": {"status":"UNVERIFIED","evidence":"No independent Vercel evidence was supplied."},
+              "aiWorkers": {"status":"UNVERIFIED","evidence":"No explicit AI_COMPLETE evidence was supplied."},
+              "revenue": {"status":"UNVERIFIED","evidence":"No verified Stripe evidence was supplied."},
+              "codeFix": {"status":"VERIFIED","evidence":"Current GitHub commit exists: $GITHUB_SHA"},
+              "liveApp": {"status":"UNVERIFIED","evidence":"A GitHub commit does not prove production is live."}
+            }
+            JSON
+          fi
 
       - name: Jay truth audit
         run: node scripts/jay-truth-guardian.mjs
@@ -65,6 +67,7 @@ jobs:
           name: jay-truth-evidence-${{ github.run_id }}
           path: |
             .jay/jay-memory.json
+            /tmp/jay-evidence.json
           retention-days: 30
 
       - name: Publish Jay verdict
