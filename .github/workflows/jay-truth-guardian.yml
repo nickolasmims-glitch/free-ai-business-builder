@@ -45,15 +45,7 @@ jobs:
         shell: bash
         run: |
           if [ ! -s "$JAY_EVIDENCE_FILE" ]; then
-            cat > "$JAY_EVIDENCE_FILE" <<JSON
-            {
-              "deployment": {"status":"UNVERIFIED","evidence":"No independent Vercel evidence was supplied."},
-              "aiWorkers": {"status":"UNVERIFIED","evidence":"No explicit AI_COMPLETE evidence was supplied."},
-              "revenue": {"status":"UNVERIFIED","evidence":"No verified Stripe evidence was supplied."},
-              "codeFix": {"status":"VERIFIED","evidence":"Current GitHub commit exists: $GITHUB_SHA"},
-              "liveApp": {"status":"UNVERIFIED","evidence":"A GitHub commit does not prove production is live."}
-            }
-            JSON
+            printf '%s\n' '{' '  "deployment": {"status":"UNVERIFIED","evidence":"No independent Vercel evidence was supplied."},' '  "aiWorkers": {"status":"UNVERIFIED","evidence":"No explicit AI_COMPLETE evidence was supplied."},' '  "revenue": {"status":"UNVERIFIED","evidence":"No verified Stripe evidence was supplied."},' '  "codeFix": {"status":"VERIFIED","evidence":"Current GitHub commit exists: '"$GITHUB_SHA"'"},' '  "liveApp": {"status":"UNVERIFIED","evidence":"A GitHub commit does not prove production is live."}' '}' > "$JAY_EVIDENCE_FILE"
           fi
 
       - name: Jay truth audit
