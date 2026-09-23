@@ -1,0 +1,57 @@
+name: Jay AI2 AI3 Self Upgrade Team
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-upgrade-team
+  cancel-in-progress: false
+
+jobs:
+  self-upgrade:
+    name: Jay + AI2 + AI3 — Learn Test Improve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run controlled upgrade coordinator
+        run: node scripts/self-upgrade-coordinator.mjs
+
+      - name: Validate JavaScript
+        run: |
+          node --check scripts/jay-truth-guardian.mjs
+          node --check scripts/jay-learning-engine.mjs
+          node --check scripts/jay-evidence-collector.mjs
+          node --check scripts/self-upgrade-coordinator.mjs
+
+      - name: Run project tests when available
+        run: npm test --if-present
+
+      - name: Report
+        run: |
+          echo "SELF-UPGRADE TEAM CYCLE COMPLETE"
+          echo "Jay: truth/evidence improvement plan recorded."
+          echo "AI2: research/execution improvement plan recorded."
+          echo "AI3: validation/testing improvement plan recorded."
+          echo "No protected financial or owner-approval rule may be changed by this workflow."
