@@ -60,6 +60,7 @@
     document.body.appendChild(el);
     const money=n=>"$"+Math.round(n||0).toLocaleString();
     const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}};
+    const syncLive=async()=>{ try{ const [p,a]=await Promise.all([fetch("/api/business-metrics",{cache:"no-store"}),fetch("/api/analytics-event",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({type:"page_view",path:location.pathname,referrer:document.referrer})})]); const m=await p.json(); if(m?.payments){ document.getElementById("obc-revenue").textContent=money(m.payments.grossRevenueUsd); document.getElementById("obc-revtrend").textContent=(m.payments.successfulPayments||0)+" verified payments"; } }catch{} };
     const calculate=()=>{
       const ledger=read("aibb_ledger",[]), score=read("aibb_scorecard",{}), offers=read("aibb_offers",[]), activity=read("aibb_activity",[]);
       const verified=ledger.filter(x=>x.status==="Verified").reduce((a,x)=>a+(Number(x.amount)||0),0);
@@ -89,7 +90,7 @@
       const hot=[0,1,2].map(i=>rank(i)[0]||"—"); const candidate=hot.join("");
       document.getElementById("obc-lottery").innerHTML=draws.length?'<div class="obc-row"><span>Pattern candidate</span><b>'+candidate+'</b></div><div class="obc-row"><span>Position-hot digits</span><b>'+hot.join(" · ")+'</b></div><div class="obc-row"><span>Sample size</span><b>'+draws.length+' draws</b></div>':'<div class="obc-muted">Add recent draws to calculate a candidate.</div>';
     };
-    calculate(); setInterval(calculate,10000);
+    calculate(); syncLive(); setInterval(calculate,10000); setInterval(syncLive,30000);
   };
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();
