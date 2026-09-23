@@ -10,7 +10,8 @@ const ALERT_WEBHOOK_URL = process.env.ALERT_WEBHOOK_URL || "";
 if (!DB_URL) throw new Error("DATABASE_URL is required for autonomous workers");
 if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY is required for autonomous workers");
 
-const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false } });
+const DB_IS_CLOUD_SQL_SOCKET = DB_URL.includes("host=/cloudsql/");
+const pool = new Pool({ connectionString: DB_URL, ...(DB_IS_CLOUD_SQL_SOCKET ? {} : { ssl: { rejectUnauthorized: false } }) });
 
 async function state() {
   await pool.query("CREATE TABLE IF NOT EXISTS gateway_state (key TEXT PRIMARY KEY,value JSONB NOT NULL,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
