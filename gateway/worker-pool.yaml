@@ -2,12 +2,23 @@ apiVersion: run.googleapis.com/v1
 kind: WorkerPool
 metadata:
   name: ai2-ai3-workers
+  annotations:
+    run.googleapis.com/scalingMode: manual
+    run.googleapis.com/manualInstanceCount: "2"
 spec:
   template:
-    containers:
-    - image: REGION-docker.pkg.dev/PROJECT_ID/gateway/ai2-ai3-worker:latest
-      env:
-      - name: GEMINI_MODEL
-        value: "gemini-3.8-flash"
-      - name: AGENT_INTERVAL_MS
-        value: "300000"
+    spec:
+      containers:
+      - name: ai2-ai3
+        image: REGION-docker.pkg.dev/PROJECT_ID/gateway/ai2-ai3-worker:latest
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+        env:
+        - name: GEMINI_MODEL
+          value: "gemini-3.8-flash"
+        - name: AGENT_INTERVAL_MS
+          value: "300000"
+        - name: NODE_OPTIONS
+          value: "--max-old-space-size=1536"
