@@ -2,15 +2,21 @@ name: Deploy Customer Gateway to Google Cloud
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Ground-Up Gateway CI"]
+    types: [completed]
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'ground-up-gateway')
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: google-github-actions/auth@v2
         with:
@@ -46,7 +52,7 @@ jobs:
 
       - name: Build gateway image
         run: |
-          gcloud builds submit gateway             --tag "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/customer-gateway:${{ github.sha }}"
+          gcloud builds submit gateway             --tag "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/customer-gateway:${{ github.event.workflow_run.head_sha || github.sha }}"
 
       - name: Build AI2/AI3 worker image
         run: |
