@@ -4,6 +4,9 @@ import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { URL } from "node:url";
 import { Pool } from "pg";
+import { ensureCoreAgents } from "./agents.mjs";
+import { lotterySignal } from "./lottery.mjs";
+import { paymentStatus } from "./payments.mjs";
 
 const PORT = Number(process.env.PORT || 8080);
 const DB_URL = process.env.DATABASE_URL || "";
@@ -122,6 +125,20 @@ async function route(req, res) {
     return json(res, 200, { ok: true, service: "customer-gateway", time: new Date().toISOString(), persistence: pool ? "postgres" : "local-dev-only", aiConfigured: Boolean(GEMINI_KEY) });
   }
   if (req.method === "GET" && u.pathname === "/api/state") return json(res, 200, publicState());
+  if (req.method === "GET" && u.pathname === "/api/payments/status") return json(res, 200, paymentStatus());
+  if (req.method === "GET" && u.pathname === "/api/lottery/signals") {
+    const games = ["Pick 3", "Powerball", "Mega Millions"];
+    return json(res, 200, { signals: games.map(g => lotterySignal(g, [])), methodology: "1-10 research signal only; not a winning probability." });
+  }
+
+  if (req.method === "POST" && u.pathname === "/api/lottery/signals") {
+    const b = await body(req);
+    if (!b.game) return json(res, 400, { error: "game is required" });
+    const result = lotterySignal(b.game, b.recentNumbers || []);
+    audit("lottery_signal", "lotterycloud", "Research signal generated", { result });
+    await saveState();
+    return json(res, 200, result);
+  }
 
   if (req.method === "POST" && u.pathname === "/api/projects") {
     const b = await body(req);
@@ -214,7 +231,8 @@ async function route(req, res) {
 }
 
 await loadState();
-audit("gateway_started", "system", "Customer Gateway started");
+ensureCoreAgents(state);
+audit("gateway_started", "system", "Customer Gateway started with AI2 and AI3 core agents");
 await saveState();
 http.createServer((req, res) => route(req, res).catch(e => {
   audit("error", "gateway", e.message);
