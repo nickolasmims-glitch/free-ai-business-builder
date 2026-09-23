@@ -1,0 +1,22 @@
+name: gateway-ground-up
+on:
+  push:
+    branches: [gateway-ground-up]
+  pull_request:
+    branches: [gateway-ground-up]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --check src/server.mjs
+      - run: node --check src/worker.mjs
+      - run: node --check src/ai.mjs
+      - run: node --check src/store.mjs
+      - run: node --check src/lottery.mjs
