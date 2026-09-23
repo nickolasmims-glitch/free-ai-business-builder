@@ -35,7 +35,7 @@ async function heartbeat(runId, status) {
 
 function execute(runId) {
   return new Promise(resolve => {
-    const child = spawn(process.execPath, ["scripts/guardian-runner.mjs"], {
+    const child = spawn(process.execPath, ["scripts/ownercloud-agent-runner.mjs"], {
       env: { ...process.env, OWNER_CLOUD_RUN_ID: runId },
       stdio: ["ignore", "pipe", "pipe"]
     });
