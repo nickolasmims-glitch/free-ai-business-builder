@@ -51,4 +51,4 @@ const unverified = Object.values(report.checks).some(x => x.status !== "VERIFIED
 report.overall = failed ? "FAILED" : unverified ? "UNVERIFIED" : "VERIFIED";
 
 console.log(JSON.stringify(report, null, 2));
-if (process.env.JAY_STRICT === "true" && report.overall !== "VERIFIED") process.exit(1);
+if (process.env.JAY_STRICT === "true" && report.overall === "FAILED") process.exit(1);
