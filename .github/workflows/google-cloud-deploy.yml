@@ -1,50 +1,46 @@
 name: Deploy Customer Gateway to Google Cloud
 
-"on":
+on:
   push:
-    branches: [ground-up-gateway]
-  workflow_dispatch: {}
+    branches:
+      - ground-up-gateway
+  workflow_dispatch:
 
 jobs:
   deploy:
+    name: Build and deploy gateway
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    env:
-      DEPLOY_SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.DEPLOY_SHA }}
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Preflight deployment credentials
+      - name: Validate required secrets
         env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION: ${{ secrets.GCP_REGION }}
-          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
-          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OWNER_ACCESS_TOKEN: ${{ secrets.OWNER_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          missing=()
-          test -n "$GCP_PROJECT_ID" || missing+=(GCP_PROJECT_ID)
-          test -n "$GCP_REGION" || missing+=(GCP_REGION)
-          test -n "$GCP_WIF_PROVIDER" || missing+=(GCP_WIF_PROVIDER)
-          test -n "$GCP_SERVICE_ACCOUNT" || missing+=(GCP_SERVICE_ACCOUNT)
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "Deployment stopped before Google authentication because these GitHub Actions secrets are missing: ${missing[*]}"
-            exit 1
-          fi
-          echo "Deployment credential preflight passed."
+          for v in PROJECT_ID REGION WIF_PROVIDER SERVICE_ACCOUNT GEMINI_API_KEY OWNER_ACCESS_TOKEN; do
+            if [ -z "${!v}" ]; then echo "Missing GitHub Actions secret: $v"; exit 1; fi
+          done
 
-      - uses: google-github-actions/auth@v3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Validate source before deployment
+      - name: Test source
         working-directory: gateway
         run: |
           set -euo pipefail
@@ -52,107 +48,95 @@ jobs:
           npm run check
           npm test
 
-      - name: Configure project, registry, Cloud SQL, runtime identity, and secrets
+      - name: Provision Google Cloud resources
         env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OWNER_ACCESS_TOKEN: ${{ secrets.OWNER_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "$GEMINI_API_KEY" || { echo "Missing GitHub secret: GEMINI_API_KEY"; exit 1; }
-          test -n "$OWNER_ACCESS_TOKEN" || { echo "Missing GitHub secret: OWNER_ACCESS_TOKEN"; exit 1; }
-
-          PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
-          REGION="${{ secrets.GCP_REGION }}"
-          INSTANCE="customer-gateway-db"
-          DB_NAME="gateway"
-          DB_USER="gateway_app"
-
           gcloud config set project "$PROJECT_ID"
           gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com sqladmin.googleapis.com
-
-          gcloud artifacts repositories describe gateway --location="$REGION" >/dev/null 2>&1 ||             gcloud artifacts repositories create gateway --repository-format=docker --location="$REGION" --description="Customer Gateway images"
-
-          gcloud iam service-accounts describe gateway-runtime@"$PROJECT_ID".iam.gserviceaccount.com >/dev/null 2>&1 ||             gcloud iam service-accounts create gateway-runtime --display-name="Customer Gateway runtime"
-
-          if ! gcloud sql instances describe "$INSTANCE" --project="$PROJECT_ID" >/dev/null 2>&1; then
-            gcloud sql instances create "$INSTANCE"               --database-version=POSTGRES_17               --region="$REGION"               --cpu=1               --memory=3840MiB               --storage-type=SSD               --storage-size=20               --storage-auto-increase               --backup-start-time=03:00
+          gcloud artifacts repositories describe gateway --location="$REGION" >/dev/null 2>&1 || gcloud artifacts repositories create gateway --repository-format=docker --location="$REGION" --description="Customer Gateway"
+          gcloud iam service-accounts describe "gateway-runtime@$PROJECT_ID.iam.gserviceaccount.com" >/dev/null 2>&1 || gcloud iam service-accounts create gateway-runtime --display-name="Customer Gateway runtime"
+          if ! gcloud sql instances describe customer-gateway-db >/dev/null 2>&1; then
+            gcloud sql instances create customer-gateway-db --database-version=POSTGRES_17 --region="$REGION" --tier=db-g1-small --storage-size=20 --storage-auto-increase --backup-start-time=03:00
           fi
-
-          gcloud sql databases describe "$DB_NAME" --instance="$INSTANCE" >/dev/null 2>&1 ||             gcloud sql databases create "$DB_NAME" --instance="$INSTANCE"
-
+          gcloud sql databases describe gateway --instance=customer-gateway-db >/dev/null 2>&1 || gcloud sql databases create gateway --instance=customer-gateway-db
           DB_PASSWORD="$(openssl rand -hex 32)"
-          if gcloud sql users list --instance="$INSTANCE" --format="value(name)" | grep -Fxq "$DB_USER"; then
-            gcloud sql users set-password "$DB_USER" --instance="$INSTANCE" --password="$DB_PASSWORD"
+          if gcloud sql users list --instance=customer-gateway-db --format="value(name)" | grep -Fxq gateway_app; then
+            gcloud sql users set-password gateway_app --instance=customer-gateway-db --password="$DB_PASSWORD"
           else
-            gcloud sql users create "$DB_USER" --instance="$INSTANCE" --password="$DB_PASSWORD"
+            gcloud sql users create gateway_app --instance=customer-gateway-db --password="$DB_PASSWORD"
           fi
-
-          CONNECTION_NAME="$(gcloud sql instances describe "$INSTANCE" --format="value(connectionName)")"
-          DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME?host=/cloudsql/$CONNECTION_NAME"
-          printf 'DATABASE_URL generated for Cloud SQL connection: %s
-' "$CONNECTION_NAME"
-
-          gcloud secrets describe gateway-gemini-api-key >/dev/null 2>&1 || gcloud secrets create gateway-gemini-api-key --replication-policy=automatic
-          gcloud secrets describe gateway-database-url >/dev/null 2>&1 || gcloud secrets create gateway-database-url --replication-policy=automatic
-          gcloud secrets describe gateway-owner-access-token >/dev/null 2>&1 || gcloud secrets create gateway-owner-access-token --replication-policy=automatic
-
+          CONNECTION_NAME="$(gcloud sql instances describe customer-gateway-db --format="value(connectionName)")"
+          DATABASE_URL="postgresql://gateway_app:$DB_PASSWORD@localhost/gateway?host=/cloudsql/$CONNECTION_NAME"
+          for secret in gateway-gemini-api-key gateway-database-url gateway-owner-access-token; do
+            gcloud secrets describe "$secret" >/dev/null 2>&1 || gcloud secrets create "$secret" --replication-policy=automatic
+          done
           printf '%s' "$GEMINI_API_KEY" | gcloud secrets versions add gateway-gemini-api-key --data-file=-
           printf '%s' "$DATABASE_URL" | gcloud secrets versions add gateway-database-url --data-file=-
           printf '%s' "$OWNER_ACCESS_TOKEN" | gcloud secrets versions add gateway-owner-access-token --data-file=-
-
           RUNTIME_SA="gateway-runtime@$PROJECT_ID.iam.gserviceaccount.com"
-          gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$RUNTIME_SA" --role="roles/secretmanager.secretAccessor" --quiet
-          gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$RUNTIME_SA" --role="roles/cloudsql.client" --quiet
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$RUNTIME_SA" --role=roles/secretmanager.secretAccessor --quiet
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$RUNTIME_SA" --role=roles/cloudsql.client --quiet
+          echo "CONNECTION_NAME=$CONNECTION_NAME" >> "$GITHUB_ENV"
+          echo "GEMINI_VERSION=$(gcloud secrets versions list gateway-gemini-api-key --filter=state=ENABLED --sort-by=~createTime --limit=1 --format='value(name.basename())')" >> "$GITHUB_ENV"
+          echo "DATABASE_VERSION=$(gcloud secrets versions list gateway-database-url --filter=state=ENABLED --sort-by=~createTime --limit=1 --format='value(name.basename())')" >> "$GITHUB_ENV"
+          echo "OWNER_VERSION=$(gcloud secrets versions list gateway-owner-access-token --filter=state=ENABLED --sort-by=~createTime --limit=1 --format='value(name.basename())')" >> "$GITHUB_ENV"
 
-          GEMINI_SECRET_VERSION=$(gcloud secrets versions list gateway-gemini-api-key --filter="state=ENABLED" --sort-by="~createTime" --limit=1 --format="value(name.basename())")
-          DATABASE_SECRET_VERSION=$(gcloud secrets versions list gateway-database-url --filter="state=ENABLED" --sort-by="~createTime" --limit=1 --format="value(name.basename())")
-          OWNER_SECRET_VERSION=$(gcloud secrets versions list gateway-owner-access-token --filter="state=ENABLED" --sort-by="~createTime" --limit=1 --format="value(name.basename())")
-          test -n "$GEMINI_SECRET_VERSION" && test -n "$DATABASE_SECRET_VERSION" && test -n "$OWNER_SECRET_VERSION"
-
-          {
-            echo "GEMINI_SECRET_VERSION=$GEMINI_SECRET_VERSION"
-            echo "DATABASE_SECRET_VERSION=$DATABASE_SECRET_VERSION"
-            echo "OWNER_SECRET_VERSION=$OWNER_SECRET_VERSION"
-            echo "CLOUDSQL_CONNECTION_NAME=$CONNECTION_NAME"
-          } >> "$GITHUB_ENV"
-
-      - name: Build gateway image
+      - name: Build gateway
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
         run: |
-          gcloud builds submit gateway             --tag "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/customer-gateway:$DEPLOY_SHA"
+          gcloud builds submit gateway --tag "$REGION-docker.pkg.dev/$PROJECT_ID/gateway/customer-gateway:$GITHUB_SHA"
 
-      - name: Build AI2/AI3 worker image
+      - name: Build AI2 AI3 worker
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
         run: |
-          gcloud builds submit gateway             --config=/dev/stdin <<EOF
+          gcloud builds submit gateway --config=/dev/stdin <<EOF
           steps:
           - name: gcr.io/cloud-builders/docker
-            args: ["build","-f","worker-Dockerfile","-t","${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/ai2-ai3-worker:$DEPLOY_SHA","."]
+            args: ["build","-f","worker-Dockerfile","-t","$REGION-docker.pkg.dev/$PROJECT_ID/gateway/ai2-ai3-worker:$GITHUB_SHA","."]
           images:
-          - "${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gateway/ai2-ai3-worker:$DEPLOY_SHA"
+          - "$REGION-docker.pkg.dev/$PROJECT_ID/gateway/ai2-ai3-worker:$GITHUB_SHA"
           EOF
 
-      - name: Deploy gateway service
+      - name: Deploy gateway
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
         working-directory: gateway
-        run: |
-          sed -e "s|REGION|${{ secrets.GCP_REGION }}|g"               -e "s|PROJECT_ID|${{ secrets.GCP_PROJECT_ID }}|g"               -e "s|CLOUDSQL_CONNECTION|${CLOUDSQL_CONNECTION_NAME}|g"               cloudrun-service.yaml > /tmp/gateway.yaml
-          sed -i "s|:latest|:$DEPLOY_SHA|g" /tmp/gateway.yaml
-          gcloud run services replace /tmp/gateway.yaml --region="${{ secrets.GCP_REGION }}"
-          gcloud run services update customer-gateway             --region="${{ secrets.GCP_REGION }}"             --service-account="gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"             --add-cloudsql-instances="$CLOUDSQL_CONNECTION_NAME"             --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:$GEMINI_SECRET_VERSION,DATABASE_URL=gateway-database-url:$DATABASE_SECRET_VERSION,OWNER_ACCESS_TOKEN=gateway-owner-access-token:$OWNER_SECRET_VERSION"
-
-      - name: Deploy worker pool
-        working-directory: gateway
-        run: |
-          sed -e "s|REGION|${{ secrets.GCP_REGION }}|g"               -e "s|PROJECT_ID|${{ secrets.GCP_PROJECT_ID }}|g"               -e "s|CLOUDSQL_CONNECTION|${CLOUDSQL_CONNECTION_NAME}|g"               worker-pool.yaml > /tmp/worker-pool.yaml
-          sed -i "s|:latest|:$DEPLOY_SHA|g" /tmp/worker-pool.yaml
-          gcloud run worker-pools replace /tmp/worker-pool.yaml --region="${{ secrets.GCP_REGION }}"
-          gcloud run worker-pools update ai2-ai3-workers             --region="${{ secrets.GCP_REGION }}"             --service-account="gateway-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"             --set-cloudsql-instances="$CLOUDSQL_CONNECTION_NAME"             --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:$GEMINI_SECRET_VERSION,DATABASE_URL=gateway-database-url:$DATABASE_SECRET_VERSION"
-
-      - name: Verify deployed resources
         run: |
           set -euo pipefail
-          SERVICE_URL=$(gcloud run services describe customer-gateway --region="${{ secrets.GCP_REGION }}" --format="value(status.url)")
-          REVISION=$(gcloud run services describe customer-gateway --region="${{ secrets.GCP_REGION }}" --format="value(status.latestReadyRevisionName)")
-          WORKER_REVISION=$(gcloud run worker-pools describe ai2-ai3-workers --region="${{ secrets.GCP_REGION }}" --format="value(status.latestCreatedRevisionName)")
-          test -n "$SERVICE_URL" && test -n "$REVISION" && test -n "$WORKER_REVISION"
-          echo "Gateway URL: $SERVICE_URL"
-          echo "Gateway ready revision: $REVISION"
-          echo "AI2/AI3 worker revision: $WORKER_REVISION"
+          sed -e "s|REGION|$REGION|g" -e "s|PROJECT_ID|$PROJECT_ID|g" -e "s|CLOUDSQL_CONNECTION|$CONNECTION_NAME|g" -e "s|:latest|:$GITHUB_SHA|g" cloudrun-service.yaml > /tmp/gateway.yaml
+          gcloud run services replace /tmp/gateway.yaml --region="$REGION"
+          gcloud run services update customer-gateway --region="$REGION" --service-account="gateway-runtime@$PROJECT_ID.iam.gserviceaccount.com" --add-cloudsql-instances="$CONNECTION_NAME" --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:$GEMINI_VERSION,DATABASE_URL=gateway-database-url:$DATABASE_VERSION,OWNER_ACCESS_TOKEN=gateway-owner-access-token:$OWNER_VERSION"
+
+      - name: Deploy AI2 AI3 worker pool
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+        working-directory: gateway
+        run: |
+          set -euo pipefail
+          sed -e "s|REGION|$REGION|g" -e "s|PROJECT_ID|$PROJECT_ID|g" -e "s|CLOUDSQL_CONNECTION|$CONNECTION_NAME|g" -e "s|:latest|:$GITHUB_SHA|g" worker-pool.yaml > /tmp/worker-pool.yaml
+          gcloud run worker-pools replace /tmp/worker-pool.yaml --region="$REGION"
+          gcloud run worker-pools update ai2-ai3-workers --region="$REGION" --service-account="gateway-runtime@$PROJECT_ID.iam.gserviceaccount.com" --set-cloudsql-instances="$CONNECTION_NAME" --set-secrets="GEMINI_API_KEY=gateway-gemini-api-key:$GEMINI_VERSION,DATABASE_URL=gateway-database-url:$DATABASE_VERSION"
+
+      - name: Verify deployment
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+        run: |
+          set -euo pipefail
+          URL="$(gcloud run services describe customer-gateway --region="$REGION" --format='value(status.url)')"
+          READY="$(gcloud run services describe customer-gateway --region="$REGION" --format='value(status.latestReadyRevisionName)')"
+          WORKER="$(gcloud run worker-pools describe ai2-ai3-workers --region="$REGION" --format='value(status.latestCreatedRevisionName)')"
+          test -n "$URL" && test -n "$READY" && test -n "$WORKER"
+          echo "Gateway URL: $URL"
+          echo "Gateway revision: $READY"
+          echo "AI2/AI3 worker revision: $WORKER"
