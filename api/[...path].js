@@ -1,12 +1,14 @@
-import { autopilot, checkoutStatus, createCheckout, health, marketIntel, paymentHistory, squareConfig, squarePayment, stripeWebhook, systemStatus } from "../server/api-handlers.js";
+import { autopilot, checkoutStatus, createCheckout, health, analyticsEvent, marketIntel, paymentHistory, businessMetrics, squareConfig, squarePayment, stripeWebhook, systemStatus } from "../server/api-handlers.js";
 
 const routes = {
   "/api/autopilot": autopilot,
   "/api/checkout-status": checkoutStatus,
   "/api/create-checkout": createCheckout,
   "/api/health": health,
+  "/api/analytics-event": analyticsEvent,
   "/api/market-intel": marketIntel,
   "/api/payment-history": paymentHistory,
+  "/api/business-metrics": businessMetrics,
   "/api/square-config": squareConfig,
   "/api/square-payment": squarePayment,
   "/api/stripe-webhook": stripeWebhook,

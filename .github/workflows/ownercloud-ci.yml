@@ -1,0 +1,31 @@
+name: OwnerCloud CI
+
+on:
+  push:
+    branches: [owner-cloud-foundation]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Syntax check OwnerCloud
+        run: |
+          node --check platform/control-plane.mjs
+          node --check platform/store.mjs
+          node --check platform/worker-contract.mjs
+          node --check platform/worker-supervisor.mjs
+          node --check scripts/ownercloud-agent-runner.mjs
+          node --check workflows/steps/ai-agents.js
+      - name: Build application
+        run: npm run build

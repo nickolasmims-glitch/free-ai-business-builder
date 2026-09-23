@@ -1,0 +1,38 @@
+services:
+  ownercloud-control:
+    build: .
+    restart: unless-stopped
+    command: ["node", "platform/control-plane.mjs"]
+    env_file: [.env.ownercloud]
+    environment:
+      OWNER_CLOUD_PORT: "8787"
+      OWNER_CLOUD_DATA_DIR: "/app/platform/data"
+    volumes: [ownercloud-data:/app/platform/data]
+    ports: ["8787:8787"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  ownercloud-worker:
+    build: .
+    restart: unless-stopped
+    command: ["node", "platform/worker-supervisor.mjs"]
+    env_file: [.env.ownercloud]
+    environment:
+      OWNER_CLOUD_DATA_DIR: "/app/platform/data"
+      OWNER_CLOUD_WORKER_INTERVAL_MS: "900000"
+      OWNER_CLOUD_MAX_RESTARTS: "2"
+    volumes: [ownercloud-data:/app/platform/data]
+volumes:
+  ownercloud-data:
+
+  lottery-observer:
+    build: .
+    restart: unless-stopped
+    command: ["node", "platform/lottery-agent.mjs"]
+    env_file: [.env.ownercloud]
+    environment:
+      OWNER_CLOUD_DATA_DIR: "/app/platform/data"
+      LOTTERY_AGENT_INTERVAL_MS: "900000"
+    volumes: [ownercloud-data:/app/platform/data]

@@ -1,0 +1,8 @@
+{
+  "mode":"BOXED","ownerAuthority":"OWNER",
+  "purpose":"Keep AI2 and AI3 focused on owner-defined objectives during migration.",
+  "exitCondition":"OwnerCloud independently executes and verifies AI2 and AI3 without browser or Vercel dependency.",
+  "rules":{"mustExecute":true,"mustStayOnObjective":true,"browserRequired":false,"autonomousSpending":false,"financialActionsRequireOwnerApproval":true,"fabricatedRevenueForbidden":true,"fabricatedResultsForbidden":true,"noGoalChangesByAgents":true,"noPolicyChangesByAgents":true,"noSilentSkip":true,"noSelfExpansion":true,"noExternalSideEffectsWithoutAuthorization":true},
+  "objectives":{"fridayTargetUsd":1000,"fridayDeadline":"2026-09-25","fourMonthTargetUsd":4000000,"fourMonthDeadline":"2027-01-25","topic":"AI workflow automation for local service businesses"},
+  "requiredWorkers":["AI2","AI3"]
+}

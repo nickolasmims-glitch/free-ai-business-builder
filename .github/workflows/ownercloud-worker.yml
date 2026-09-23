@@ -1,0 +1,40 @@
+name: OwnerCloud Worker Heartbeat
+# Runtime verification trigger
+
+on:
+  push:
+    branches: [owner-cloud-foundation]
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  ownercloud:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Run OwnerCloud worker cycle
+        env:
+          OWNER_CLOUD_RUN_ID: ${{ github.run_id }}
+          AUTOPILOT_TOPIC: Business revenue opportunity research and monetization
+          FRIDAY_TARGET_USD: "1000"
+          FRIDAY_DEADLINE: "2026-09-25"
+          FOUR_MONTH_TARGET_USD: "4000000"
+          FOUR_MONTH_DEADLINE: "2027-01-25"
+          VERCEL_OIDC_TOKEN: ${{ secrets.VERCEL_OIDC_TOKEN }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AI2_PROVIDER: ${{ vars.AI2_PROVIDER }}
+          AI3_PROVIDER: ${{ vars.AI3_PROVIDER }}
+          AI2_MODEL: ${{ vars.AI2_MODEL }}
+          AI3_MODEL: ${{ vars.AI3_MODEL }}
+        run: node scripts/ownercloud-agent-runner.mjs
