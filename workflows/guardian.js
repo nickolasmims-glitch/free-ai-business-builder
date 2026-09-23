@@ -29,7 +29,29 @@ export async function guardianRevenueScoutMonitor(input = {}) {
       cycles.push({ cycle, heartbeat, verifiedRevenue, ai2: "BLOCKED_BY_GUARDIAN", ai3: "BLOCKED_BY_GUARDIAN", guardian: gate, timestamp: new Date().toISOString() });
       console.log("[GUARDIAN]", JSON.stringify({ event: "guardian_gate_blocked", cycle, reason: gate.reason }));
     } else {
+      // AI2 and AI3 are hard-wired mandatory workers for every allowed cycle.
+      // A cycle is not considered complete if either worker did not actually run
+      // to a model-completed state. This prevents "green" supervisor runs that
+      // merely performed research while the agents were skipped.
       const ai = await runAgentCycle({ topic, cycle, goals: GOALS, directCommand, verifiedRevenue });
+      const ai2Ran = ai?.ai2?.status === "AI_COMPLETE";
+      const ai3Ran = ai?.ai3?.status === "AI_COMPLETE";
+
+      console.log("[GUARDIAN]", JSON.stringify({
+        event: "mandatory_agent_execution",
+        cycle,
+        ai2: ai?.ai2?.status || "MISSING",
+        ai3: ai?.ai3?.status || "MISSING"
+      }));
+
+      if (!ai2Ran || !ai3Ran) {
+        const failures = [
+          !ai2Ran ? { agent: "AI2", status: ai?.ai2?.status || "MISSING", errorClass: ai?.ai2?.errorClass || null, message: ai?.ai2?.message || null } : null,
+          !ai3Ran ? { agent: "AI3", status: ai?.ai3?.status || "MISSING", errorClass: ai?.ai3?.errorClass || null, message: ai?.ai3?.message || null } : null
+        ].filter(Boolean);
+        throw new Error("MANDATORY_AI2_AI3_EXECUTION_FAILED: " + JSON.stringify(failures));
+      }
+
       const audit = await guardianAuditCycle({ cycle, topic, goals: GOALS, result: ai, directCommand, verifiedRevenue });
       const snapshot = { cycle, heartbeat, verifiedRevenue, ai2: ai.ai2?.status || "MISSING", ai3: ai.ai3?.status || "MISSING", revenuePipeline: ai.revenuePipeline || null, guardian: audit, timestamp: new Date().toISOString() };
       cycles.push(snapshot);
