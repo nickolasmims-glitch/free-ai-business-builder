@@ -1,0 +1,3 @@
+import {addJob,addEvent,recordWorker} from "./store.mjs";
+function plan(agent){if(agent==="AI2")return{type:"research",action:"scan-business-opportunities",output:"Review queued business opportunities, identify actionable tasks, and record evidence before execution."};return{type:"operations",action:"verify-and-progress",output:"Check system health, validate unfinished tasks, and advance only work supported by runtime evidence."}}
+export async function runAgent(agent){const p=plan(agent);try{await addJob({agent,status:"completed",...p,ranAt:new Date().toISOString()});await addEvent({type:"agent_run",agent,action:p.action});await recordWorker(agent.toLowerCase(),true);return{ok:true,agent,plan:p}}catch(e){await recordWorker(agent.toLowerCase(),false,e.message);throw e}}
