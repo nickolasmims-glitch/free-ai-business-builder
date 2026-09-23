@@ -31,6 +31,46 @@ const server = http.createServer(async (req, res) => {
         lastRun: state.runs.at(-1) || null
       });
     }
+    if (req.method === "GET" && url.pathname === "/business") {
+      const completedRuns = state.runs.filter(r => r.status === "COMPLETE").length;
+      const failedRuns = state.runs.filter(r => r.status === "FAILED").length;
+      const totalRuns = completedRuns + failedRuns;
+      const successRate = totalRuns ? Number(((completedRuns / totalRuns) * 100).toFixed(1)) : 0;
+      return json(res, 200, {
+        generatedAt: new Date().toISOString(),
+        targets: {
+          friday: { targetUsd: Number(process.env.FRIDAY_TARGET_USD || 1000), deadline: process.env.FRIDAY_DEADLINE || "2026-09-25" },
+          fourMonth: { targetUsd: Number(process.env.FOUR_MONTH_TARGET_USD || 4000000), deadline: process.env.FOUR_MONTH_DEADLINE || "2027-01-25" }
+        },
+        production: {
+          totalRuns,
+          completedRuns,
+          failedRuns,
+          successRate,
+          ai2: state.workers.ai2,
+          ai3: state.workers.ai3
+        },
+        traffic: {
+          liveVisitors: 0,
+          impressions: 0,
+          pageViews: 0,
+          source: "awaiting_analytics_ingest"
+        },
+        payments: {
+          grossRevenueUsd: 0,
+          successfulPayments: 0,
+          refundsUsd: 0,
+          feesUsd: 0,
+          netRevenueUsd: 0,
+          source: "awaiting_payment_ingest"
+        },
+        forecasts: {
+          revenueForecastUsd: null,
+          profitForecastUsd: null,
+          basis: "insufficient_verified_business_data"
+        }
+      });
+    }
     if (req.method === "GET" && url.pathname === "/control") {
       return json(res, 200, {
         ownerAuthority:"OWNER", hostingAuthority:"OWNER", businessDecisionAuthority:"OWNER",
