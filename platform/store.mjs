@@ -12,6 +12,8 @@ const initialState = {
     ai3: { required: true, status: "NOT_STARTED", heartbeatAt: null, lastRunId: null, lastError: null }
   },
   runs: [],
+  incidents: [],
+  guardian: { lastMessageAt: null, lastMessage: null },
   business: {
     traffic: { liveVisitors: 0, impressions: 0, pageViews: 0, uniqueVisitors: 0, conversions: 0, sources: {} },
     payments: { grossRevenueUsd: 0, successfulPayments: 0, refundsUsd: 0, feesUsd: 0, netRevenueUsd: 0, transactions: [] },
