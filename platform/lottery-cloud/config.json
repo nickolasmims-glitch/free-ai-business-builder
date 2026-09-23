@@ -1,0 +1,13 @@
+{
+  "entity": "LotteryCloud",
+  "ownerOnly": true,
+  "independent": true,
+  "browserRequired": false,
+  "controlsOtherAgents": false,
+  "financialActions": false,
+  "games": ["texas_pick_3", "texas_lowball", "mega_millions"],
+  "simulationRunsPerStrategy": 10000,
+  "backtestRequired": true,
+  "webResearch": true,
+  "reporting": "OWNER_ONLY"
+}
