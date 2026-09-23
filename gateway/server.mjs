@@ -14,6 +14,8 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const ALERT_WEBHOOK_URL = process.env.ALERT_WEBHOOK_URL || "";
 const AUTO_BOT_MODE = process.env.AUTO_BOT_MODE !== "false";
+const OWNER_ACCESS_TOKEN = process.env.OWNER_ACCESS_TOKEN || "";
+const SESSION_COOKIE = "gateway_owner";
 const DATA_DIR = new URL("./data/", import.meta.url).pathname;
 const DATA_FILE = new URL("./data/state.json", import.meta.url).pathname;
 
@@ -84,6 +86,31 @@ async function body(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+function parseCookies(req) {
+  return Object.fromEntries((req.headers.cookie || "").split(";").filter(Boolean).map(x => {
+    const i = x.indexOf("="); return [x.slice(0, i).trim(), decodeURIComponent(x.slice(i + 1).trim())];
+  }));
+}
+function isAuthorized(req) {
+  if (!OWNER_ACCESS_TOKEN) return false;
+  const auth = req.headers.authorization || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const cookie = parseCookies(req)[SESSION_COOKIE] || "";
+  return bearer === OWNER_ACCESS_TOKEN || cookie === OWNER_ACCESS_TOKEN;
+}
+function requireOwner(req, res) {
+  if (!OWNER_ACCESS_TOKEN) {
+    json(res, 503, { error: "Owner authentication is not configured. Set OWNER_ACCESS_TOKEN before exposing the gateway." });
+    return false;
+  }
+  if (!isAuthorized(req)) {
+    res.setHeader("www-authenticate", "Bearer");
+    json(res, 401, { error: "Owner authentication required" });
+    return false;
+  }
+  return true;
+}
+
 function publicState() {
   return {
     projects: state.projects,
@@ -123,6 +150,18 @@ async function route(req, res) {
   const u = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   if (req.method === "GET" && u.pathname === "/api/health") {
     return json(res, 200, { ok: true, service: "customer-gateway", time: new Date().toISOString(), persistence: pool ? "postgres" : "local-dev-only", aiConfigured: Boolean(GEMINI_KEY) });
+  }
+  if (req.method === "POST" && u.pathname === "/api/auth") {
+    const b = await body(req);
+    if (!OWNER_ACCESS_TOKEN) return json(res, 503, { error: "Owner authentication is not configured" });
+    if (b.token !== OWNER_ACCESS_TOKEN) return json(res, 401, { error: "Invalid owner token" });
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    res.setHeader("set-cookie", SESSION_COOKIE + "=" + encodeURIComponent(OWNER_ACCESS_TOKEN) + "; HttpOnly; SameSite=Strict; Path=/" + secure);
+    return json(res, 200, { ok: true, role: "owner" });
+  }
+  if (req.method === "GET" && u.pathname === "/api/auth") return json(res, 200, { authenticated: isAuthorized(req) });
+  if (u.pathname.startsWith("/api/") && u.pathname !== "/api/health" && u.pathname !== "/api/auth") {
+    if (!requireOwner(req, res)) return;
   }
   if (req.method === "GET" && u.pathname === "/api/state") return json(res, 200, publicState());
   if (req.method === "GET" && u.pathname === "/api/payments/status") return json(res, 200, paymentStatus());
