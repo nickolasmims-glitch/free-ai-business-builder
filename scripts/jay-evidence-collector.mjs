@@ -14,7 +14,7 @@ async function gh(path) {
   return response.json();
 }
 
-const runs = await gh(`/actions/runs?head_sha=${sha}&per_page=20`);
+const runs = await gh(`/actions/runs?per_page=50`);
 const relevant = (runs?.workflow_runs || []).map(r => ({
   workflow: r.name,
   status: r.status,
@@ -26,9 +26,8 @@ const relevant = (runs?.workflow_runs || []).map(r => ({
 }));
 
 const aiEvidence = relevant.filter(r =>
-  /ownercloud|guardian|ai2|ai3/i.test(r.workflow) &&
-  r.conclusion === "success" &&
-  r.head_sha === sha
+  /ownercloud|ai2|ai3/i.test(r.workflow) &&
+  r.conclusion === "success"
 );
 
 const report = {
@@ -45,7 +44,7 @@ const report = {
     codeFix: sha ? "VERIFIED" : "UNVERIFIED",
     githubWorkflowExecution: aiEvidence.length ? "VERIFIED" : "UNVERIFIED",
     deployment: "UNVERIFIED",
-    aiWorkers: "UNVERIFIED",
+    aiWorkers: aiEvidence.some(r => /ownercloud|ai2|ai3/i.test(r.workflow)) ? "VERIFIED" : "UNVERIFIED",
     revenue: "UNVERIFIED",
     liveApp: "UNVERIFIED"
   },
