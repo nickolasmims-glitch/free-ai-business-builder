@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   jay:
@@ -19,6 +20,9 @@ jobs:
       JAY_STRICT: "true"
       JAY_EVIDENCE_FILE: /tmp/jay-evidence.json
       JAY_MEMORY_FILE: .jay/jay-memory.json
+      GITHUB_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_SHA: ${{ github.sha }}
     steps:
       - name: Checkout current source
         uses: actions/checkout@v4
@@ -31,12 +35,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build baseline evidence
+      - name: Collect independent GitHub evidence
+        run: node scripts/jay-evidence-collector.mjs
+
+      - name: Build baseline claim evidence
         shell: bash
         run: |
           cat > "$JAY_EVIDENCE_FILE" <<JSON
           {
-            "deployment": {"status":"UNVERIFIED","evidence":"Jay requires independent deployment evidence for exact commit $GITHUB_SHA."},
+            "deployment": {"status":"UNVERIFIED","evidence":"Jay requires independent Vercel evidence for exact commit $GITHUB_SHA."},
             "aiWorkers": {"status":"UNVERIFIED","evidence":"Jay requires explicit AI_COMPLETE evidence for AI2 and AI3."},
             "revenue": {"status":"UNVERIFIED","evidence":"Jay requires verified Stripe evidence; revenue is never assumed."},
             "codeFix": {"status":"VERIFIED","evidence":"Current GitHub commit exists: $GITHUB_SHA"},
@@ -51,12 +58,13 @@ jobs:
         if: always()
         run: node scripts/jay-learning-engine.mjs
 
-      - name: Upload Jay memory
+      - name: Upload Jay evidence and memory
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jay-truth-memory
-          path: .jay/jay-memory.json
+          name: jay-truth-evidence-${{ github.run_id }}
+          path: |
+            .jay/jay-memory.json
           retention-days: 30
 
       - name: Publish Jay verdict
