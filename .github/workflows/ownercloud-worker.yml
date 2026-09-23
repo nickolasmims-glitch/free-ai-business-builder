@@ -1,4 +1,5 @@
 name: OwnerCloud Worker Heartbeat
+# Runtime verification trigger
 
 on:
   push:
