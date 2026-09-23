@@ -45,6 +45,26 @@ const server = http.createServer(async (req, res) => {
       });
       return json(res, 202, { ok:true, updatedAt:updated.business.updatedAt });
     }
+    if (req.method === "GET" && url.pathname === "/guardian") {
+      return json(res, 200, { ok:true, guardian: state.guardian || {}, incidents: (state.incidents || []).slice(-25) });
+    }
+    if (req.method === "POST" && url.pathname === "/guardian/report") {
+      if (!authorized(req)) return json(res, 401, { error: CONTROL_TOKEN ? "UNAUTHORIZED" : "CONTROL_TOKEN_NOT_CONFIGURED" });
+      let body = ""; for await (const chunk of req) body += chunk;
+      const input = body ? JSON.parse(body) : {};
+      const incident = { id: randomUUID(), at:new Date().toISOString(), severity:String(input.severity||"ERROR"), source:String(input.source||"Guardian"), message:String(input.message||"Unknown Guardian issue").slice(0,4000), runId:input.runId||null };
+      await updateState(s => { s.incidents = [...(s.incidents||[]), incident].slice(-100); s.guardian={lastMessageAt:incident.at,lastMessage:incident}; return s; });
+      return json(res, 202, { ok:true, incidentId:incident.id });
+    }
+    if (req.method === "POST" && url.pathname === "/analytics/event") {
+      if (!authorized(req)) return json(res, 401, { error: CONTROL_TOKEN ? "UNAUTHORIZED" : "CONTROL_TOKEN_NOT_CONFIGURED" });
+      let body = ""; for await (const chunk of req) body += chunk;
+      const input = body ? JSON.parse(body) : {};
+      const type = ["page_view","impression","conversion"].includes(input.type) ? input.type : null;
+      if (!type) return json(res, 400, {error:"INVALID_EVENT_TYPE"});
+      await updateState(s => { const t=s.business.traffic; if(type==="page_view") t.pageViews++; if(type==="impression") t.impressions++; if(type==="conversion") t.conversions++; t.updatedAt=new Date().toISOString(); return s; });
+      return json(res,202,{ok:true});
+    }
     if (req.method === "GET" && url.pathname === "/analytics") {
       return json(res, 200, {
         ok: true,
