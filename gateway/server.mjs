@@ -23,7 +23,8 @@ const SESSION_COOKIE = "gateway_owner";
 const DATA_DIR = new URL("./data/", import.meta.url).pathname;
 const DATA_FILE = new URL("./data/state.json", import.meta.url).pathname;
 
-let pool = DB_URL ? new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false } }) : null;
+const DB_IS_CLOUD_SQL_SOCKET = DB_URL.includes("host=/cloudsql/");
+let pool = DB_URL ? new Pool({ connectionString: DB_URL, ...(DB_IS_CLOUD_SQL_SOCKET ? {} : { ssl: { rejectUnauthorized: false } }) }) : null;
 let state = { projects: [], bots: [], events: [], alerts: [] };
 
 async function loadState() {
