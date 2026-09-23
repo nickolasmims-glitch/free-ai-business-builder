@@ -26,3 +26,13 @@ services:
     volumes: [ownercloud-data:/app/platform/data]
 volumes:
   ownercloud-data:
+
+  lottery-observer:
+    build: .
+    restart: unless-stopped
+    command: ["node", "platform/lottery-agent.mjs"]
+    env_file: [.env.ownercloud]
+    environment:
+      OWNER_CLOUD_DATA_DIR: "/app/platform/data"
+      LOTTERY_AGENT_INTERVAL_MS: "900000"
+    volumes: [ownercloud-data:/app/platform/data]
