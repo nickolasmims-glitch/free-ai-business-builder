@@ -6,6 +6,7 @@ spec:
   template:
     metadata:
       annotations:
+        run.googleapis.com/cloudsql-instances: CLOUDSQL_CONNECTION
         run.googleapis.com/cpu-throttling: "false"
         autoscaling.knative.dev/minScale: "3"
         autoscaling.knative.dev/maxScale: "50"
