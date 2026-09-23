@@ -41,15 +41,21 @@ function classifyGatewayError(status, message) {
 }
 
 async function askAgent(agent, prompt) {
-  const key = process.env.AI_GATEWAY_API_KEY;
+  // AI2 and AI3 are mandatory workers. Prefer Vercel's short-lived OIDC
+  // credential in production, with AI_GATEWAY_API_KEY as an explicit fallback.
+  // Never silently skip model execution: a missing credential is a hard failure.
+  const key = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
   if (!key) {
     return {
-      status: "WAITING_FOR_AI_GATEWAY_KEY",
-      message: "AI_GATEWAY_API_KEY is not configured; evidence capture can continue, but model decisions are paused."
+      status: "AI_ERROR",
+      errorClass: "MISSING_GATEWAY_CREDENTIAL",
+      message: "AI2/AI3 execution is mandatory, but no Vercel OIDC or AI Gateway credential is available."
     };
   }
 
-  const model = process.env.AI_AGENT_MODEL || (agent.startsWith("AI 2") ? "openai/gpt-5.6-sol" : "openai/gpt-5.6-terra");
+  const model = agent.startsWith("AI 2")
+    ? (process.env.AI2_MODEL || "openai/gpt-5.6-sol")
+    : (process.env.AI3_MODEL || "openai/gpt-5.6-terra");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60000);
 
