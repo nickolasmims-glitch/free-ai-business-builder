@@ -11,42 +11,101 @@ const policy = {
   fourMonthDeadline: process.env.FOUR_MONTH_DEADLINE || "2027-01-25"
 };
 
-const state = await readState();
-const run = state.runs.find(x => x.runId === runId);
-if (!run) throw new Error("RUN_NOT_FOUND:" + runId);
+const initialState = await readState();
+let run = initialState.runs.find(x => x.runId === runId);
 
-const topic = run.topic || process.env.AUTOPILOT_TOPIC || "AI workflow automation for local service businesses";
-const result = await runAgentCycle({
-  topic,
-  cycle: Number(run.attempts || 1),
-  goals: policy,
-  directCommand: run.directCommand || null,
-  verifiedRevenue: state.business?.payments?.grossRevenueUsd || 0
-});
-
-await updateState(current => {
-  const target = current.runs.find(x => x.runId === runId);
-  if (target) {
-    target.workerResult = result;
-    target.completedWorkers = ["AI2", "AI3"];
-  }
-  current.workers.ai2.lastEvidence = result.ai2 || null;
-  current.workers.ai3.lastEvidence = result.ai3 || null;
-  return current;
-});
-
-if (result.ai2?.status !== "AI_COMPLETE" || result.ai3?.status !== "AI_COMPLETE") {
-  throw new Error("REQUIRED_AI_WORKER_FAILED:" + JSON.stringify({
-    ai2: result.ai2?.status,
-    ai3: result.ai3?.status
-  }));
+if (!run) {
+  const now = new Date().toISOString();
+  const topic = process.env.AUTOPILOT_TOPIC || "AI workflow automation for local service businesses";
+  await updateState(current => {
+    current.runs.push({
+      runId,
+      topic,
+      status: "RUNNING",
+      attempts: 1,
+      createdAt: now,
+      startedAt: now,
+      completedAt: null,
+      directCommand: null,
+      completedWorkers: []
+    });
+    current.workers.ai2.status = "RUNNING";
+    current.workers.ai3.status = "RUNNING";
+    current.workers.ai2.lastRunId = runId;
+    current.workers.ai3.lastRunId = runId;
+    current.workers.ai2.heartbeatAt = now;
+    current.workers.ai3.heartbeatAt = now;
+    return current;
+  });
+  run = {
+    runId,
+    topic,
+    status: "RUNNING",
+    attempts: 1,
+    directCommand: null
+  };
 }
 
-console.log(JSON.stringify({
-  service: "OwnerCloudAgentRunner",
-  runId,
-  status: "AI_COMPLETE",
-  ai2: result.ai2.model,
-  ai3: result.ai3.model,
-  researchCount: result.researchCount
-}));
+const topic = run.topic || process.env.AUTOPILOT_TOPIC || "AI workflow automation for local service businesses";
+const state = await readState();
+
+try {
+  const result = await runAgentCycle({
+    topic,
+    cycle: Number(run.attempts || 1),
+    goals: policy,
+    directCommand: run.directCommand || null,
+    verifiedRevenue: state.business?.payments?.grossRevenueUsd || 0
+  });
+
+  await updateState(current => {
+    const target = current.runs.find(x => x.runId === runId);
+    const now = new Date().toISOString();
+    if (target) {
+      target.workerResult = result;
+      target.completedWorkers = ["AI2", "AI3"];
+      target.status = result.ai2?.status === "AI_COMPLETE" && result.ai3?.status === "AI_COMPLETE" ? "COMPLETE" : "FAILED";
+      target.completedAt = now;
+    }
+    current.workers.ai2.lastEvidence = result.ai2 || null;
+    current.workers.ai3.lastEvidence = result.ai3 || null;
+    current.workers.ai2.status = result.ai2?.status || "FAILED";
+    current.workers.ai3.status = result.ai3?.status || "FAILED";
+    current.workers.ai2.heartbeatAt = now;
+    current.workers.ai3.heartbeatAt = now;
+    return current;
+  });
+
+  if (result.ai2?.status !== "AI_COMPLETE" || result.ai3?.status !== "AI_COMPLETE") {
+    throw new Error("REQUIRED_AI_WORKER_FAILED:" + JSON.stringify({
+      ai2: result.ai2?.status,
+      ai3: result.ai3?.status
+    }));
+  }
+
+  console.log(JSON.stringify({
+    service: "OwnerCloudAgentRunner",
+    runId,
+    status: "AI_COMPLETE",
+    ai2: result.ai2.model,
+    ai3: result.ai3.model,
+    researchCount: result.researchCount
+  }));
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  await updateState(current => {
+    const target = current.runs.find(x => x.runId === runId);
+    const now = new Date().toISOString();
+    if (target) {
+      target.status = "FAILED";
+      target.error = message;
+      target.completedAt = now;
+    }
+    current.workers.ai2.status = "FAILED";
+    current.workers.ai3.status = "FAILED";
+    current.workers.ai2.lastError = message;
+    current.workers.ai3.lastError = message;
+    return current;
+  });
+  throw error;
+}
