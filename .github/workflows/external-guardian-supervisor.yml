@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: external-ai2-ai3-guardian
@@ -20,46 +19,36 @@ jobs:
   supervisor:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    env:
+      AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+      AUTOPILOT_REPORT_EMAIL: ${{ secrets.AUTOPILOT_REPORT_EMAIL }}
+      AI2_MODEL: openai/gpt-5.6-sol
+      AI3_MODEL: openai/gpt-5.6-terra
+      AI_FALLBACK_MODEL: openai/gpt-5.6-luna
+      AUTOPILOT_TOPIC: AI workflow automation for local service businesses
+      FRIDAY_TARGET_USD: "1000"
+      FRIDAY_DEADLINE: "2026-09-25"
+      FOUR_MONTH_TARGET_USD: "4000000"
+      FOUR_MONTH_DEADLINE: "2027-01-25"
+      OWNER_LOCKED: "true"
+      AUTONOMOUS_SPENDING: "false"
+      FINANCIAL_ACTIONS_REQUIRE_OWNER_APPROVAL: "true"
+      FABRICATED_REVENUE_FORBIDDEN: "true"
     steps:
-      - name: Wait for the exact commit to be live in Vercel production
-        env:
-          STATUS_URL: https://free-ai-business-builder.vercel.app/api/system-status
-          EXPECTED_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 30); do
-            body="$(curl --silent --show-error --max-time 10 "$STATUS_URL" || true)"
-            live_sha="$(printf '%s' "$body" | jq -r '.deploymentCommit // empty' 2>/dev/null || true)"
-            echo "deployment readiness attempt $attempt: live_sha=$live_sha expected=$EXPECTED_SHA"
-            if [ "$live_sha" = "$EXPECTED_SHA" ]; then
-              echo "Exact Git commit is live in production."
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "The exact Git commit was not live in production within 5 minutes."
-          exit 1
+      - name: Checkout exact deployed source
+        uses: actions/checkout@v4
 
-      - name: Trigger Guardian outside Vercel Cron
-        env:
-          GUARDIAN_URL: https://free-ai-business-builder.vercel.app/api/guardian
-        run: |
-          set -euo pipefail
-          oidc_response="$(curl --fail-with-body --silent --show-error \
-            --max-time 20 \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=free-ai-business-builder-guardian")"
-          OIDC_TOKEN="$(printf '%s' "$oidc_response" | jq -r '.value')"
-          if [ -z "$OIDC_TOKEN" ] || [ "$OIDC_TOKEN" = "null" ]; then
-            echo "GitHub OIDC token was not issued."
-            exit 1
-          fi
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-          response="$(curl --fail-with-body --silent --show-error \
-            --max-time 60 \
-            -X POST "$GUARDIAN_URL" \
-            -H "Authorization: Bearer $OIDC_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data '{"topic":"AI2 AI3 autonomous revenue mission","command":"Continue the revenue mission. Research, evaluate, and execute every legitimate zero-cost internal step available. Do not spend, transfer, withdraw, invest, purchase, refund, or make financial commitments. Use the standing authorization for legitimate targeted zero-cost outreach only where a compliant delivery channel and verified business basis exist. Record verified progress and blockers."}')"
+      - name: Install dependencies
+        run: npm ci
 
-          echo "$response"
+      - name: Run AI2 + AI3 Guardian worker
+        run: node scripts/guardian-runner.mjs
