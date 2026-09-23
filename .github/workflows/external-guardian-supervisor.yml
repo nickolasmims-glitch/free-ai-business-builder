@@ -48,7 +48,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run AI2 + AI3 Guardian worker
         run: node scripts/guardian-runner.mjs
