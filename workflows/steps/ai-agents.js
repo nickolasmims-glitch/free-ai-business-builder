@@ -41,27 +41,11 @@ function classifyGatewayError(status, message) {
   return "UPSTREAM_ERROR";
 }
 
-async function askAgent(agent, prompt) {
-  // AI2 and AI3 are mandatory workers. Prefer Vercel's short-lived OIDC
-  // credential in production, with AI_GATEWAY_API_KEY as an explicit fallback.
-  // Never silently skip model execution: a missing credential is a hard failure.
-  const key = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
-  if (!key) {
-    return {
-      status: "AI_ERROR",
-      errorClass: "MISSING_GATEWAY_CREDENTIAL",
-      message: "AI2/AI3 execution is mandatory, but no Vercel OIDC or AI Gateway credential is available."
-    };
-  }
-
-  const model = agent.startsWith("AI 2")
-    ? (process.env.AI2_MODEL || "openai/gpt-5.6-sol")
-    : (process.env.AI3_MODEL || "openai/gpt-5.6-terra");
+async function askDirectOpenAI(agent, prompt, key, model) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60000);
-
   try {
-    const r = await fetch("https://ai-gateway.vercel.sh/v1/responses", {
+    const r = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Authorization": "Bearer " + key,
@@ -85,47 +69,98 @@ async function askAgent(agent, prompt) {
       }),
       signal: controller.signal
     });
-
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
-      const message = data?.error?.message || data?.message || "AI Gateway request failed";
+      const message = data?.error?.message || data?.message || "OpenAI request failed";
       return {
         status: "AI_ERROR",
         errorClass: classifyGatewayError(r.status, message),
         httpStatus: r.status,
+        provider: "openai",
         model,
         message: message.slice(0, 1000)
       };
     }
-
     const text = String(
       data.output_text ||
       (Array.isArray(data.output)
-        ? data.output
-            .flatMap(x => Array.isArray(x.content) ? x.content : [])
-            .map(x => x.text || "")
-            .join("\n")
+        ? data.output.flatMap(x => Array.isArray(x.content) ? x.content : [])
+            .map(x => x.text || "").join("\n")
         : "")
     ).trim();
-
-    if (!text) {
-      return {
-        status: "AI_ERROR",
-        errorClass: "EMPTY_MODEL_OUTPUT",
-        model,
-        message: "AI Gateway returned a successful response without text output."
-      };
-    }
-
-    return { status: "AI_COMPLETE", model, text: text.slice(0, 16000) };
+    if (!text) return {
+      status: "AI_ERROR",
+      errorClass: "EMPTY_MODEL_OUTPUT",
+      provider: "openai",
+      model,
+      message: "OpenAI returned a successful response without text output."
+    };
+    return { status: "AI_COMPLETE", provider: "openai", model, text: text.slice(0, 16000) };
   } catch (e) {
     if (e?.name === "AbortError") {
-      return { status: "AI_ERROR", errorClass: "RETRYABLE_TIMEOUT", model, message: "AI Gateway request timed out after 60 seconds." };
+      return { status: "AI_ERROR", errorClass: "RETRYABLE_TIMEOUT", provider: "openai", model, message: "OpenAI request timed out after 60 seconds." };
     }
-    return { status: "AI_ERROR", errorClass: "NETWORK_ERROR", model, message: String(e?.message || "AI Gateway network error").slice(0, 1000) };
+    return { status: "AI_ERROR", errorClass: "NETWORK_ERROR", provider: "openai", model, message: String(e?.message || "OpenAI network error").slice(0, 1000) };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function askVercelGateway(agent, prompt, key, model) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  try {
+    const r = await fetch("https://ai-gateway.vercel.sh/v1/responses", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + key,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        reasoning: { effort: agent.startsWith("AI 2") ? "high" : "medium" },
+        input: [
+          { type: "message", role: "system", content: "You are " + agent + " for AI Business Builder. Never invent customers, revenue, credentials, or results. Do not spend money or take financial actions without owner approval." },
+          { type: "message", role: "user", content: prompt }
+        ]
+      }),
+      signal: controller.signal
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const message = data?.error?.message || data?.message || "AI Gateway request failed";
+      return { status: "AI_ERROR", errorClass: classifyGatewayError(r.status, message), httpStatus: r.status, provider: "vercel", model, message: message.slice(0, 1000) };
+    }
+    const text = String(data.output_text || (Array.isArray(data.output)
+      ? data.output.flatMap(x => Array.isArray(x.content) ? x.content : []).map(x => x.text || "").join("\n") : "")).trim();
+    if (!text) return { status: "AI_ERROR", errorClass: "EMPTY_MODEL_OUTPUT", provider: "vercel", model, message: "AI Gateway returned a successful response without text output." };
+    return { status: "AI_COMPLETE", provider: "vercel", model, text: text.slice(0, 16000) };
+  } catch (e) {
+    if (e?.name === "AbortError") return { status: "AI_ERROR", errorClass: "RETRYABLE_TIMEOUT", provider: "vercel", model, message: "AI Gateway request timed out after 60 seconds." };
+    return { status: "AI_ERROR", errorClass: "NETWORK_ERROR", provider: "vercel", model, message: String(e?.message || "AI Gateway network error").slice(0, 1000) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function askAgent(agent, prompt) {
+  const openAIKey = process.env.OPENAI_API_KEY;
+  const gatewayKey = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
+  const explicitProvider = String(process.env[agent.startsWith("AI 2") ? "AI2_PROVIDER" : "AI3_PROVIDER"] || process.env.AI_PROVIDER || "").toLowerCase();
+  const provider = explicitProvider || (openAIKey ? "openai" : "vercel");
+  const model = agent.startsWith("AI 2")
+    ? (process.env.AI2_MODEL || (provider === "openai" ? "gpt-5.6-sol" : "openai/gpt-5.6-sol"))
+    : (process.env.AI3_MODEL || (provider === "openai" ? "gpt-5.6-terra" : "openai/gpt-5.6-terra"));
+
+  if (provider === "openai") {
+    if (!openAIKey) return { status: "AI_ERROR", errorClass: "MISSING_OPENAI_CREDENTIAL", provider: "openai", model, message: "OPENAI_API_KEY is required for the direct OpenAI provider." };
+    return askDirectOpenAI(agent, prompt, openAIKey, model);
+  }
+
+  if (!gatewayKey) {
+    return { status: "AI_ERROR", errorClass: "MISSING_GATEWAY_CREDENTIAL", provider: "vercel", model, message: "No Vercel OIDC or AI Gateway credential is available." };
+  }
+  return askVercelGateway(agent, prompt, gatewayKey, model);
 }
 
 async function notify(subject, payload) {
