@@ -7,7 +7,8 @@
 </head>
 <body>
 <header><div><strong>Customer Gateway</strong><span>Owner control plane</span></div><button id="refresh">Refresh</button></header>
-<main>
+<section id="login" class="hero"><h1>Owner access</h1><p>This control plane is private. Enter the owner access token configured on the gateway.</p><input id="ownerToken" type="password" placeholder="Owner access token" autocomplete="off"><button id="loginBtn">Sign in</button></section>
+<main id="app" hidden>
 <section class="hero"><h1>One customer app. Full AI operations.</h1><p>Website builder, AI operations, bot management, alerts, and a visible audit trail.</p><div id="health"></div></section>
 <section class="grid">
 <article><h2>Website Builder</h2><input id="projectName" placeholder="Project name"><textarea id="instruction" placeholder="Tell the builder what to create or change"></textarea><button id="createProject">Create project</button><button id="generate">Generate site plan</button><pre id="builderOut"></pre></article>
