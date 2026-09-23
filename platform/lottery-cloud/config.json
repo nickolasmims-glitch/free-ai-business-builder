@@ -5,9 +5,32 @@
   "browserRequired": false,
   "controlsOtherAgents": false,
   "financialActions": false,
-  "games": ["texas_pick_3", "texas_lowball", "mega_millions"],
+  "games": [
+    "texas_pick_3",
+    "texas_lowball",
+    "mega_millions"
+  ],
   "simulationRunsPerStrategy": 10000,
   "backtestRequired": true,
   "webResearch": true,
-  "reporting": "OWNER_ONLY"
+  "reporting": "OWNER_ONLY",
+  "mode": "INDEPENDENT_AI",
+  "boxed": false,
+  "ownerReportingOnly": true,
+  "aiModel": "AI_RESEARCH_ANALYST",
+  "aiGateway": "optional_provider",
+  "learning": [
+    "historical data",
+    "pre-test data",
+    "web research",
+    "simulation",
+    "backtesting",
+    "strategy comparison"
+  ],
+  "restrictions": [
+    "no_wagering",
+    "no_ticket_purchase",
+    "no_financial_transactions",
+    "no_control_of_other_agents"
+  ]
 }
