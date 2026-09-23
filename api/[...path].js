@@ -1,13 +1,13 @@
-import autopilot from "./autopilot.js";
-import checkoutStatus from "./checkout-status.js";
-import createCheckout from "./create-checkout.js";
-import health from "./health.js";
-import marketIntel from "./market-intel.js";
-import paymentHistory from "./payment-history.js";
-import squareConfig from "./square-config.js";
-import squarePayment from "./square-payment.js";
-import stripeWebhook from "./stripe-webhook.js";
-import systemStatus from "./system-status.js";
+import autopilot from "../server/legacy-api/autopilot.js";
+import checkoutStatus from "../server/legacy-api/checkout-status.js";
+import createCheckout from "../server/legacy-api/create-checkout.js";
+import health from "../server/legacy-api/health.js";
+import marketIntel from "../server/legacy-api/market-intel.js";
+import paymentHistory from "../server/legacy-api/payment-history.js";
+import squareConfig from "../server/legacy-api/square-config.js";
+import squarePayment from "../server/legacy-api/square-payment.js";
+import stripeWebhook from "../server/legacy-api/stripe-webhook.js";
+import systemStatus from "../server/legacy-api/system-status.js";
 
 const routes = {
   "/api/autopilot": autopilot,
