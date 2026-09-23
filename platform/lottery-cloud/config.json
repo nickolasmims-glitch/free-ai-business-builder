@@ -8,6 +8,7 @@
   "games": [
     "texas_pick_3",
     "texas_lowball",
+    "powerball",
     "mega_millions"
   ],
   "simulationRunsPerStrategy": 10000,
