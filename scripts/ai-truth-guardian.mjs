@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { execFileSync } from "node:child_process";
 
 const claims = {
   deployment: "A deployment is only VERIFIED when Vercel reports state READY for the exact commit being discussed.",
@@ -11,22 +10,17 @@ const claims = {
 
 function verifyRecord(record) {
   const status = String(record?.status || "").toUpperCase();
-  return {
-    verified: status === "VERIFIED",
-    status: status || "UNVERIFIED",
-    evidence: record?.evidence || "No evidence supplied."
-  };
+  return { verified: status === "VERIFIED", status: status || "UNVERIFIED", evidence: record?.evidence || "No evidence supplied." };
 }
 
 const inputPath = process.env.TRUTH_GUARDIAN_INPUT || "";
 let input = {};
-if (inputPath) {
-  input = JSON.parse(await readFile(inputPath, "utf8"));
-}
+if (inputPath) input = JSON.parse(await readFile(inputPath, "utf8"));
 
 const report = {
-  guardian: "TRUTH_GUARDIAN",
-  version: 1,
+  guardian: "JAY",
+  role: "INDEPENDENT_OVERSIGHT_OF_ASSISTANT",
+  version: 2,
   timestamp: new Date().toISOString(),
   rules: claims,
   checks: {
@@ -35,15 +29,21 @@ const report = {
     revenue: verifyRecord(input.revenue),
     codeFix: verifyRecord(input.codeFix)
   },
+  independence: {
+    oversees: "ASSISTANT_ONLY",
+    boxed: false,
+    authority: "EVIDENCE_REVIEW_AND_TRUTH_REPORTING",
+    directMessage: "I am Jay. I oversee the assistant only. I am independent, I require evidence for claims, and I will tell the owner directly when a claim is unsupported or false."
+  },
   assistantIntegrity: {
     claimsAllowed: ["VERIFIED", "UNVERIFIED", "FAILED", "ATTEMPTED"],
-    forbiddenClaimPattern: "Do not say fixed, live, complete, successful, or verified without matching evidence.",
-    directMessage: "I am the Truth Guardian. I do not decide whether the assistant is truthful by trust. I require evidence for each claim."
+    forbiddenClaimPattern: "Do not say fixed, live, complete, successful, or verified without matching evidence."
   }
 };
 
-const failures = Object.values(report.checks).filter(x => x.status === "FAILED");
-const unverifiable = Object.values(report.checks).filter(x => !x.verified);
+const checks = Object.values(report.checks);
+const failures = checks.filter(x => x.status === "FAILED");
+const unverifiable = checks.filter(x => !x.verified);
 report.overall = failures.length ? "FAILED" : unverifiable.length ? "UNVERIFIED" : "VERIFIED";
 console.log(JSON.stringify(report, null, 2));
 if (process.env.TRUTH_GUARDIAN_STRICT === "true" && report.overall !== "VERIFIED") process.exit(1);
