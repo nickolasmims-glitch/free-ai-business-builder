@@ -6,6 +6,9 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
+  workflow_run:
+    workflows: ["OwnerCloud Worker Heartbeat"]
+    types: [completed]
 
 permissions:
   contents: read
